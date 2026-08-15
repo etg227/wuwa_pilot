@@ -1,1 +1,70 @@
-m«ëˆ§½©buªàºg§¶×¬¶ÏÓzË@Æ+ºyŞ®œ”±¨m«ë€İ…¹îš(§~)^¢‹­~)^mºŞjFëy©ÊyÚ.¶›­º˜§¶‰bë(~W§‚Øgº`İuç(uç^r‡^Šzn¶^–—b²™ZÊØb²g¬±¨Š)éºØ§¦ë_ŠWyö®–×è®Ë]Šz(ºÚn¶‹­¦ë_ŠWyö®–×è®Ë]¢ë
+import threading
+import unittest
+
+from src.axis.AxisChart import AxisChart, OutputBinding
+from src.axis.AxisRunner import AxisRunner, build_axis_events
+from tests.TestAxisChart import create_axis_payload
+
+
+class FakeOutput:
+    def __init__(self, fail_on_tap=False):
+        self.actions = []
+        self.fail_on_tap = fail_on_tap
+
+    def tap(self, binding):
+        self.actions.append(("tap", binding.config_text))
+        if self.fail_on_tap:
+            raise RuntimeError("æ¨¡æ‹Ÿè¾“å‡ºå¤±è´¥")
+
+    def press(self, binding):
+        self.actions.append(("down", binding.config_text))
+
+    def release(self, binding):
+        self.actions.append(("up", binding.config_text))
+
+
+class TestAxisRunner(unittest.TestCase):
+    def test_event_builder_expands_repeat_and_hold_without_serializing_steps(self):
+        chart = AxisChart.from_dict(create_axis_payload())
+        mappings = {
+            "start_challenge": OutputBinding("key", "f"),
+            "skill": OutputBinding("mouse", "left", "repeat"),
+            "dodge_hold": OutputBinding("key", "lshift", "hold"),
+        }
+
+        events = build_axis_events(chart, mappings, repeat_interval_ms=30)
+
+        self.assertEqual(events[0].binding.config_text, "f")
+        self.assertEqual([event.operation for event in events if event.step_index == 1], ["down", "up"])
+        repeat_events = [event for event in events if event.step_index == 0]
+        self.assertEqual(len(repeat_events), 2)
+        self.assertEqual(repeat_events[0].at_ms, 123.5)
+
+    def test_runner_releases_held_key_when_later_output_fails(self):
+        hold = OutputBinding("key", "lshift", "hold")
+        tap = OutputBinding("key", "e")
+        chart = AxisChart.from_dict(create_axis_payload())
+        events = build_axis_events(
+            chart,
+            {"start_challenge": None, "skill": tap, "dodge_hold": hold},
+            include_start_trigger=False,
+        )
+        # æŠŠé•¿æŒ‰æå‰åˆ°ç¬¬ä¸€ä¸ªåŠ¨ä½œï¼Œç¡®ä¿åç»­è½»è§¦å¤±è´¥æ—¶è¿›å…¥æ¸…ç†è·¯å¾„ã€‚
+        events = tuple(
+            sorted(
+                [
+                    events[-2].__class__(0, 1, 0, "down", hold, 0, "é•¿æŒ‰"),
+                    events[0].__class__(1, 2, 1, "tap", tap, 1, "æŠ€èƒ½"),
+                ]
+            )
+        )
+        output = FakeOutput(fail_on_tap=True)
+
+        with self.assertRaises(RuntimeError):
+            AxisRunner().run(events, output, threading.Event(), speed=100)
+
+        self.assertEqual(output.actions, [("down", "lshift:hold"), ("tap", "e"), ("up", "lshift:hold")])
+
+
+if __name__ == "__main__":
+    unittest.main()

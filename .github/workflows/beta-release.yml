@@ -1,1 +1,42 @@
-m«ëˆ§½©buªàºg§¶­†æÿÂŠä~Z0³öŞµªŞ•æ¬{)¥RÆ y¶¬{®vçºh¢ø¥zŠ.µø¥y¶ëy©­æ¤zw(uçhºÚn¶êbÚ%Šw¬¡ù^aéƒu×œ¡×yÊz)éºØazZ]ŠÊek+aŠÉ²Æ z(§¦ëb›­~)^uçÚº[_¢»-v)è¢ëiºÚ.¶›­~)^uçÚº[_¢»-v‹­
+name: Beta Release
+
+on:
+  push:
+    tags:
+      - 'beta*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: æ„å»ºå¹¶å‘å¸ƒ Windows æµ‹è¯•ç‰ˆ
+    runs-on: windows-latest
+
+    steps:
+      - name: æ£€å‡ºæºç 
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: true
+          fetch-depth: 0
+
+      - name: é…ç½® Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: éªŒè¯è¿æ®µè½´æ ¸å¿ƒé€»è¾‘
+        run: python -m unittest tests.TestAxisChart tests.TestAxisRunner -v
+
+      - name: æ„å»º Windows å®‰è£…åŒ…
+        id: build-app
+        uses: ok-oldking/pyappify-action@master
+
+      - name: å‘å¸ƒ GitHub é¢„å‘è¡Œç‰ˆ
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Wuwa Pilot beta1.0
+          body_path: .github/RELEASE_beta1.0.md
+          prerelease: true
+          files: pyappify_dist/*

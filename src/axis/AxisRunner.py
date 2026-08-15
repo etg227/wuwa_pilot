@@ -1,1 +1,151 @@
-m«ëˆ§½©buªàºg§¶ÊÜı¬b³ğ1ŠÄnw«§%,j›jÇºà7an{¦Š)ßŠW¨¢ë_ŠW›n·š‘ºŞjG§r‡^v‹­¦ën¦)í¢X§zÊ•éà¶î˜7]yÊy×œ¡×¢›­†¥¥Ø¬¦V²¶¬™ë,j¢Šzn¶)éº×â•ç^}«¥µú+²×bŠ.¶›­¢ëiº×â•ç^}«¥µú+²×hº
+import threading
+import time
+from dataclasses import dataclass, field
+from typing import Callable, Protocol
+
+from src.axis.AxisChart import AxisChart, OutputBinding
+
+MAX_AXIS_EVENTS = 100000
+
+
+class AxisOutput(Protocol):
+    def tap(self, binding: OutputBinding) -> None: ...
+
+    def press(self, binding: OutputBinding) -> None: ...
+
+    def release(self, binding: OutputBinding) -> None: ...
+
+
+@dataclass(order=True, frozen=True)
+class AxisEvent:
+    at_ms: float
+    priority: int
+    sequence: int
+    operation: str = field(compare=False)
+    binding: OutputBinding = field(compare=False)
+    step_index: int = field(compare=False)
+    label: str = field(compare=False)
+
+
+def build_axis_events(
+    chart: AxisChart,
+    mappings: dict[str, OutputBinding | None],
+    repeat_interval_ms: int = 110,
+    include_start_trigger: bool = True,
+) -> tuple[AxisEvent, ...]:
+    """æŠŠè¯­ä¹‰åŠ¨ä½œå±•å¼€æˆå¯å¹¶å‘æ‰§è¡Œçš„æŒ‰ä¸‹ã€é‡Šæ”¾å’Œè½»è§¦äº‹ä»¶ã€‚"""
+
+    if repeat_interval_ms < 30 or repeat_interval_ms > 1000:
+        raise ValueError("æ™®æ”»è¿ç‚¹é—´éš”å¿…é¡»åœ¨ 30ï½1000 æ¯«ç§’ä¹‹é—´")
+
+    events = []
+    sequence = 0
+
+    def append_event(event: AxisEvent) -> None:
+        if len(events) >= MAX_AXIS_EVENTS:
+            raise ValueError(f"å±•å¼€åçš„æŒ‰é”®äº‹ä»¶è¶…è¿‡ä¸Šé™ {MAX_AXIS_EVENTS}")
+        events.append(event)
+
+    if include_start_trigger and chart.start_trigger_move_id:
+        move_id = chart.start_trigger_move_id
+        if binding := mappings.get(move_id):
+            append_event(AxisEvent(0, 2, sequence, "tap", binding, -1, chart.label_for(move_id)))
+            sequence += 1
+
+    for step_index, step in enumerate(chart.steps):
+        binding = mappings.get(step.move_id)
+        if binding is None:
+            continue
+        if binding.mode == "repeat":
+            offset = 0.0
+            while offset < max(step.duration_ms, 1):
+                append_event(
+                    AxisEvent(step.start_ms + offset, 2, sequence, "tap", binding, step_index, step.label)
+                )
+                sequence += 1
+                offset += repeat_interval_ms
+        elif binding.mode == "hold":
+            append_event(AxisEvent(step.start_ms, 1, sequence, "down", binding, step_index, step.label))
+            sequence += 1
+            release_at = step.start_ms + max(step.duration_ms, 40)
+            append_event(AxisEvent(release_at, 0, sequence, "up", binding, step_index, step.label))
+            sequence += 1
+        else:
+            append_event(AxisEvent(step.start_ms, 2, sequence, "tap", binding, step_index, step.label))
+            sequence += 1
+    return tuple(sorted(events))
+
+
+class AxisRunner:
+    """åŸºäºå•è°ƒæ—¶é’Ÿæ‰§è¡Œæ—¶é—´è½´ï¼Œå¹¶ä¿è¯åœæ­¢æ—¶é‡Šæ”¾å…¨éƒ¨é•¿æŒ‰è¾“å…¥ã€‚"""
+
+    def __init__(self, clock: Callable[[], float] = time.monotonic):
+        self.clock = clock
+
+    def run(
+        self,
+        events: tuple[AxisEvent, ...],
+        output: AxisOutput,
+        stop_event: threading.Event,
+        speed: float = 1.0,
+        action_callback: Callable[[AxisEvent], None] | None = None,
+        progress_callback: Callable[[float], None] | None = None,
+    ) -> bool:
+        if speed <= 0:
+            raise ValueError("æ’­æ”¾é€Ÿåº¦å¿…é¡»å¤§äº 0")
+
+        held: dict[OutputBinding, int] = {}
+        notified_steps = set()
+        start = self.clock()
+        total_ms = max((event.at_ms for event in events), default=0.0)
+        cancelled = False
+        try:
+            for event in events:
+                target = start + event.at_ms / 1000 / speed
+                remaining = target - self.clock()
+                if remaining > 0 and stop_event.wait(remaining):
+                    cancelled = True
+                    break
+                if stop_event.is_set():
+                    cancelled = True
+                    break
+
+                if event.step_index not in notified_steps:
+                    notified_steps.add(event.step_index)
+                    if action_callback:
+                        action_callback(event)
+                self._execute_event(event, output, held)
+                if progress_callback:
+                    progress_callback(100.0 if total_ms <= 0 else min(100.0, event.at_ms / total_ms * 100))
+        finally:
+            for binding in reversed(tuple(held)):
+                try:
+                    output.release(binding)
+                except Exception:
+                    # æ¸…ç†é˜¶æ®µä¸èƒ½å› ä¸ºä¸€ä¸ªé”®é‡Šæ”¾å¤±è´¥è€Œæ¼æ‰å…¶ä»–é”®ã€‚
+                    continue
+            held.clear()
+        if progress_callback and not cancelled:
+            progress_callback(100.0)
+        return cancelled
+
+    @staticmethod
+    def _execute_event(event: AxisEvent, output: AxisOutput, held: dict[OutputBinding, int]) -> None:
+        binding = event.binding
+        if event.operation == "tap":
+            output.tap(binding)
+        elif event.operation == "down":
+            count = held.get(binding, 0)
+            if count == 0:
+                output.press(binding)
+            held[binding] = count + 1
+        elif event.operation == "up":
+            count = held.get(binding, 0)
+            if count <= 1:
+                if count == 1:
+                    output.release(binding)
+                held.pop(binding, None)
+            else:
+                held[binding] = count - 1
+        else:
+            raise ValueError(f"æœªçŸ¥è½´äº‹ä»¶ï¼š{event.operation}")

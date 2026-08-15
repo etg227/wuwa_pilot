@@ -1,1 +1,107 @@
-m«ëˆ§½©buªàºg§¶×¬¶ÏÓzË@Æ+…ªí§%,j›jÇºà7an{¦Š)ßŠW¨¢ë_ŠW›n·š‘ºŞjG§r‡^v‹­¦ën¦)í¢X§zÊ•éà¶î˜7]yÊy×œ¡×¢›­†¥¥Ø¬¦V²¶¬™ë,j¢Šzn¶)éº×â•ç^}«¥µú+²×bŠ.¶›­¢ëiº×â•ç^}«¥µú+²×hº
+import json
+import unittest
+
+from src.axis.AxisChart import (
+    AxisChart,
+    AxisFormatError,
+    build_default_output_mapping,
+    extract_community_id,
+    normalize_axis_binding,
+    parse_output_binding,
+)
+
+
+def create_axis_payload():
+    return {
+        "type": "wwcombo-chart",
+        "version": 3,
+        "chart": {
+            "id": "wwc_test",
+            "title": "æµ‹è¯•è½´",
+            "startTriggerMoveId": "start_challenge",
+            "steps": [
+                {
+                    "id": "step_1",
+                    "moveId": "skill",
+                    "label": "æŠ€èƒ½",
+                    "characterSlot": 2,
+                    "lane": "main",
+                    "startMin": 100,
+                    "startMax": 200,
+                    "durationMin": 20,
+                    "durationMax": 40,
+                    "samples": [{"recordingId": "initial", "startTime": 123.5, "duration": 30.5}],
+                },
+                {
+                    "id": "step_2",
+                    "moveId": "dodge_hold",
+                    "label": "é•¿æŒ‰é—ªé¿",
+                    "startMin": 500,
+                    "startMax": 500,
+                    "durationMin": 200,
+                    "durationMax": 200,
+                    "samples": [],
+                },
+            ],
+        },
+        "moves": [
+            {"id": "start_challenge", "label": "å¼€å§‹"},
+            {"id": "skill", "label": "æŠ€èƒ½"},
+            {"id": "dodge_hold", "label": "é•¿æŒ‰é—ªé¿"},
+        ],
+        "bindings": [
+            {"moveId": "start_challenge", "inputs": [{"code": "KeyF", "label": "F"}]},
+            {"moveId": "skill", "inputs": [{"code": "KeyE", "label": "E"}]},
+            {
+                "moveId": "dodge_hold",
+                "inputs": [
+                    {"code": "MouseRightHoid", "label": "MouseRightHoid"},
+                    {"code": "Mouse4", "label": "Mouse4"},
+                ],
+            },
+        ],
+    }
+
+
+class TestAxisChart(unittest.TestCase):
+    def test_parse_wwcombo_v3_uses_initial_sample_and_range_fallback(self):
+        chart = AxisChart.from_json(json.dumps(create_axis_payload()))
+
+        self.assertEqual(chart.title, "æµ‹è¯•è½´")
+        self.assertEqual(len(chart.steps), 2)
+        self.assertEqual(chart.steps[0].start_ms, 123.5)
+        self.assertEqual(chart.steps[0].duration_ms, 30.5)
+        self.assertEqual(chart.steps[1].start_ms, 500)
+        self.assertEqual(chart.steps[1].duration_ms, 200)
+
+    def test_default_mapping_uses_local_hotkeys_for_semantic_actions(self):
+        chart = AxisChart.from_dict(create_axis_payload())
+        mapping = build_default_output_mapping(chart, {"Resonance Key": "x", "Dodge Key": "rshift"})
+
+        self.assertEqual(mapping["skill"].config_text, "x")
+        self.assertEqual(mapping["dodge_hold"].config_text, "rshift:hold")
+        self.assertEqual(mapping["start_challenge"].config_text, "f")
+
+    def test_legacy_mouse_right_typo_is_supported(self):
+        binding = normalize_axis_binding("MouseRightHoid")
+
+        self.assertEqual(binding.config_text, "mouse:right:hold")
+
+    def test_extract_community_id_from_download_url(self):
+        result = extract_community_id(
+            "https://nova.fb520.site/api/community/download/wwc_7dd8fdd2-44ce-4281-82e2-f03a3466bf30"
+        )
+
+        self.assertEqual(result, "wwc_7dd8fdd2-44ce-4281-82e2-f03a3466bf30")
+
+    def test_rejects_non_wwcombo_json(self):
+        with self.assertRaises(AxisFormatError):
+            AxisChart.from_json('{"type": "unknown"}')
+
+    def test_rejects_unsupported_manual_key_name(self):
+        with self.assertRaises(AxisFormatError):
+            parse_output_binding("not_a_real_key")
+
+
+if __name__ == "__main__":
+    unittest.main()
