@@ -644,10 +644,10 @@ msgid "not enough stamina"
 msgstr "vigor insuficiente"
 
 msgid ""
-"Click skill failed, check if the keybinding is correct in ok-ww settings!"
+"Click skill failed, check if the keybinding is correct in Wuwa Pilot settings!"
 msgstr ""
 "¡Fallo al hacer clic en la habilidad, comprueba si la asignación de teclas "
-"es correcta en la configuración de ok-ww!"
+"es correcta en la configuración de Wuwa Pilot!"
 
 msgid "Change Time to Night"
 msgstr "Cambiar Hora a Noche"
@@ -1107,8 +1107,8 @@ msgstr "📅 Tarea diaria"
 msgid "🩺 Diagnosis"
 msgstr "🩺 Diagnóstico"
 
-msgid "⬆️ 批量强化声骸(游戏与okww语言必须为简体/繁体中文)"
-msgstr "⬆️ Mejorar Ecos por lotes (el juego y okww deben usar chino simplificado/tradicional)"
+msgid "⬆️ 批量强化声骸(游戏与 Wuwa Pilot 语言必须为简体/繁体中文)"
+msgstr "⬆️ Mejorar Ecos por lotes (el juego y Wuwa Pilot deben usar chino simplificado/tradicional)"
 
 msgid "🌀 Farm 4C Echo in Dungeon/World"
 msgstr "🌀 Farmear Eco 4C en mazmorra/mundo"
@@ -1155,8 +1155,8 @@ msgstr "Pulsa B para abrir la mochila, selecciona en el filtro los Ecos cuyo atr
 msgid "点击B进入背包, 在过滤器中选择需要强化的声骸, 并按照等级从0排序后开始."
 msgstr "Pulsa B para abrir la mochila, selecciona en el filtro los Ecos que quieras mejorar y ordénalos por nivel desde 0 antes de comenzar."
 
-msgid "游戏与okww语言必须为简体/繁体中文,必须16:9分辨率,使用1600x900以上分辨率, 勾选需要的, 没勾的都会自动合成"
-msgstr "El juego y okww deben estar en chino simplificado/tradicional; se requiere una resolución 16:9 de al menos 1600x900. Marca lo que quieras conservar; lo no marcado se fusionará automáticamente."
+msgid "游戏与 Wuwa Pilot 语言必须为简体/繁体中文,必须16:9分辨率,使用1600x900以上分辨率, 勾选需要的, 没勾的都会自动合成"
+msgstr "El juego y Wuwa Pilot deben estar en chino simplificado/tradicional; se requiere una resolución 16:9 de al menos 1600x900. Marca lo que quieras conservar; lo no marcado se fusionará automáticamente."
 
 msgid "Switch to Healer before and after Combat"
 msgstr "Cambiar al sanador antes y después del combate"

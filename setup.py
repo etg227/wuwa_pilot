@@ -1,9 +1,8 @@
+import os
+
 import setuptools
 from Cython.Build import cythonize
-from distutils.extension import Extension
 from setuptools import Extension
-
-import os
 
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
@@ -34,18 +33,17 @@ base_dir = "src"
 extensions = find_pyx_packages(base_dir)
 
 setuptools.setup(
-    name="ok-ww",
+    name="wuwa-pilot",
     version="0.0.1",
-    author="ok-oldking",
-    author_email="firedcto@gmail.com",
-    description="Automation with Computer Vision for Python",
-    url="https://github.com/ok-oldking/ok-script",
+    author="etg227",
+    description="Wuthering Waves automation with computer vision",
+    url="https://github.com/etg227/wuwa_pilot",
     packages=setuptools.find_packages(),
     include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GNU Affero General Public License v3",
         "Operating System :: Microsoft :: Windows",
     ],
     install_requires=[

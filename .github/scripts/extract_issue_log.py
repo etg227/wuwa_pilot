@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Safely extract diagnostic logs and screenshots from an OK-WW issue archive."""
+"""Safely extract diagnostic logs and screenshots from a Wuwa Pilot issue archive."""
 
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ def validate_attachment_url(url: str) -> str:
         or len(parts) != 5
         or parts[:3] != ("/", "user-attachments", "files")
         or not parts[3].isdigit()
-        or path.name.casefold() != "ok-ww-log.zip"
+        or path.name.casefold() != "wuwa-pilot-log.zip"
         or parsed.query
         or parsed.fragment
         or parsed.username
@@ -72,7 +72,7 @@ def validate_attachment_url(url: str) -> str:
         or parsed.port is not None
     ):
         raise UnsafeArchiveError(
-            "expected an https://github.com/user-attachments/files/<id>/OK-WW-log.zip URL"
+            "expected an https://github.com/user-attachments/files/<id>/Wuwa-Pilot-log.zip URL"
         )
     return url
 
@@ -80,7 +80,7 @@ def validate_attachment_url(url: str) -> str:
 def download_archive(url: str, destination: Path) -> None:
     request = urllib.request.Request(
         validate_attachment_url(url),
-        headers={"User-Agent": "OK-WW-issue-triage/1.0"},
+        headers={"User-Agent": "Wuwa-Pilot-issue-triage/1.0"},
     )
     deadline = time.monotonic() + DOWNLOAD_TIMEOUT_SECONDS
     with urllib.request.urlopen(request, timeout=10) as response, destination.open("wb") as output:
@@ -248,7 +248,7 @@ def extract_archive(
         screenshots = select_screenshots(archive, archive_prefix)
         output_root.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(
-            prefix="ok-ww-extracted-", dir=output_root.parent
+            prefix="wuwa-pilot-extracted-", dir=output_root.parent
         ) as staging_directory:
             staging_root = Path(staging_directory)
             staged_log = staging_root / "logs" / "ok-script.log"
@@ -315,15 +315,15 @@ def download_and_extract(
     # Never leave a previous issue's evidence available to a later triage run.
     if output_root.exists():
         shutil.rmtree(output_root)
-    with tempfile.TemporaryDirectory(prefix="ok-ww-issue-log-") as directory:
-        archive_path = Path(directory) / "OK-WW-log.zip"
+    with tempfile.TemporaryDirectory(prefix="wuwa-pilot-issue-log-") as directory:
+        archive_path = Path(directory) / "Wuwa-Pilot-log.zip"
         download_archive(url, archive_path)
         return extract_archive(archive_path, output_root)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("url", help="GitHub OK-WW-log.zip issue attachment URL")
+    parser.add_argument("url", help="GitHub Wuwa-Pilot-log.zip issue attachment URL")
     args = parser.parse_args()
 
     try:

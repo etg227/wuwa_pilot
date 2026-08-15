@@ -7,11 +7,10 @@ assignees: ''
 
 ---
 
-Check the troubleshooting guide:
-[Documentation troubleshooting](https://ok-oldking.github.io/ok-wuthering-waves/en/#troubleshooting)
+Read the [README](https://github.com/etg227/wuwa_pilot#readme) first.
 
 Search existing issues:
-[https://github.com/ok-oldking/ok-wuthering-waves/issues?q=](https://github.com/ok-oldking/ok-wuthering-waves/issues?q=)
+[Wuwa Pilot issues](https://github.com/etg227/wuwa_pilot/issues?q=)
 
 Question:
 [Clearly describe what you want to know]
@@ -22,8 +21,8 @@ FAQ result:
 What you have already tried:
 [List documentation, settings, or troubleshooting steps you checked]
 
-OK-WW version:
-[For example] 3.5.23
+Wuwa Pilot version:
+[For example] v1.0.2
 
 Windows version and relevant settings:
 [Include only information related to the question]

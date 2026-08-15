@@ -597,8 +597,8 @@ msgid "not enough stamina"
 msgstr "體力不足"
 
 msgid ""
-"Click skill failed, check if the keybinding is correct in ok-ww settings!"
-msgstr "釋放技能失敗，請檢查ok-ww的按鍵設定是否正確！"
+"Click skill failed, check if the keybinding is correct in Wuwa Pilot settings!"
+msgstr "釋放技能失敗，請檢查 Wuwa Pilot 的按鍵設定是否正確！"
 
 msgid "Change Time to Night"
 msgstr "自動切換時間至夜晚"
@@ -1179,8 +1179,8 @@ msgstr "目標屬性"
 msgid "攻击"
 msgstr "攻擊"
 
-msgid "批量强化声骸(游戏与okww语言必须为简体/繁体中文)"
-msgstr "批次強化聲骸(遊戲與okww語言必須為簡體/繁體中文)"
+msgid "批量强化声骸(游戏与 Wuwa Pilot 语言必须为简体/繁体中文)"
+msgstr "批次強化聲骸(遊戲與 Wuwa Pilot 語言必須為簡體/繁體中文)"
 
 msgid "点击B进入背包, 在过滤器中选择需要强化的声骸, 并按照等级从0排序后开始."
 msgstr "點擊B進入背包, 在過濾器中選擇需要強化的聲骸, 並按照等級從0排序後開始."
@@ -1236,8 +1236,8 @@ msgstr "如果開啟，第一個副詞條必須在有效詞條列表中且符合
 msgid "定义哪些属性被视为有效"
 msgstr "定義哪些屬性被視為有效"
 
-msgid "游戏与okww语言必须为简体/繁体中文,必须16:9分辨率,使用1600x900以上分辨率, 勾选需要的, 没勾的都会自动合成"
-msgstr "遊戲與okww語言必須為簡體/繁體中文,必須16:9解析度,使用1600x900以上解析度, 勾選需要的, 沒勾的都會自動合成"
+msgid "游戏与 Wuwa Pilot 语言必须为简体/繁体中文,必须16:9分辨率,使用1600x900以上分辨率, 勾选需要的, 没勾的都会自动合成"
+msgstr "遊戲與 Wuwa Pilot 語言必須為簡體/繁體中文,必須16:9解析度,使用1600x900以上解析度, 勾選需要的, 沒勾的都會自動合成"
 
 msgid "数据坞五合一"
 msgstr "資料塢五合一"
@@ -1319,8 +1319,8 @@ msgstr "📅 每日任務"
 msgid "🩺 Diagnosis"
 msgstr "🩺 診斷"
 
-msgid "⬆️ 批量强化声骸(游戏与okww语言必须为简体/繁体中文)"
-msgstr "⬆️ 批次強化聲骸（遊戲與okww語言必須為簡體/繁體中文）"
+msgid "⬆️ 批量强化声骸(游戏与 Wuwa Pilot 语言必须为简体/繁体中文)"
+msgstr "⬆️ 批次強化聲骸（遊戲與 Wuwa Pilot 語言必須為簡體/繁體中文）"
 
 msgid "🌀 Farm 4C Echo in Dungeon/World"
 msgstr "🌀 副本/大世界刷4C聲骸"

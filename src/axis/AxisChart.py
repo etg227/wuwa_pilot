@@ -38,7 +38,7 @@ class AxisStep:
 
 @dataclass(frozen=True)
 class OutputBinding:
-    """OK-WW 实际输出的键盘或鼠标动作。"""
+    """Wuwa Pilot 实际输出的键盘或鼠标动作。"""
 
     kind: str
     code: str
@@ -201,7 +201,7 @@ def download_community_chart(identifier: str) -> AxisChart:
 
 
 def normalize_axis_binding(code: str) -> OutputBinding | None:
-    """把浏览器 KeyboardEvent 风格代码转换为 OK-WW 输入。"""
+    """把浏览器 KeyboardEvent 风格代码转换为 Wuwa Pilot 输入。"""
 
     raw = str(code or "").strip()
     compact = re.sub(r"[\s_-]", "", raw).casefold()

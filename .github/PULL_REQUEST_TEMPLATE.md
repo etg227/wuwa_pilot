@@ -54,13 +54,8 @@ If the change affects UI, recognition results, or user-visible behavior, please 
 
 ## 检查清单 / Checklist
 
-- [ ] 我已阅读 [CONTRIBUTING.md](https://github.com/ok-oldking/ok-wuthering-waves/blob/master/CONTRIBUTING.md) / I have read [CONTRIBUTING.md](https://github.com/ok-oldking/ok-wuthering-waves/blob/master/CONTRIBUTING.md)
+- [ ] 我已阅读 [CONTRIBUTING.md](https://github.com/etg227/wuwa_pilot/blob/master/CONTRIBUTING.md) / I have read [CONTRIBUTING.md](https://github.com/etg227/wuwa_pilot/blob/master/CONTRIBUTING.md)
 - [ ] 我已阅读 README 中的免责声明 / I have read the disclaimer in the README
 - [ ] 我已尽量保持 PR 范围清晰，没有混入无关修改 / I have kept this PR focused and avoided unrelated changes
 - [ ] 我已说明测试结果或无法测试的原因 / I have described the test results or why testing was not possible
 - [ ] 我没有提交日志、缓存、临时文件或个人配置 / I have not committed logs, caches, temporary files, or personal settings
-
-## 社区联系方式 / Community Contact
-
-- 开发者群 / Developer QQ group: `926858895`
-- Discord: [https://discord.gg/vVyCatEBgA](https://discord.gg/vVyCatEBgA)

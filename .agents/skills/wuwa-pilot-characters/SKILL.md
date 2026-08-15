@@ -1,9 +1,9 @@
 ---
-name: ok-ww-characters
-description: Create, modify, review, and test Wuthering Waves character automation classes under src/char in ok-wuthering-waves. Use when Codex needs to add a new character, update a character rotation, map character skill descriptions into BaseChar logic, register CharFactory entries, reason about Labels feature names, or support English and Chinese combat terminology such as echo, resonance, forte, liberation, click, and heavy.
+name: wuwa-pilot-characters
+description: Create, modify, review, and test Wuthering Waves character automation classes under src/char in Wuwa Pilot. Use when Codex needs to add a new character, update a character rotation, map character skill descriptions into BaseChar logic, register CharFactory entries, reason about Labels feature names, or support English and Chinese combat terminology such as echo, resonance, forte, liberation, click, and heavy.
 ---
 
-# OK-WW Characters
+# Wuwa Pilot Characters
 
 ## Overview
 

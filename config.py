@@ -9,7 +9,7 @@ except ImportError:
     from qfluentwidgets import FluentIcon as Icon
 from src.task.process_feature import process_feature
 
-# 与上游一致：开发仓库固定为 dev，发布时由 CI 的 inline_ok_requirements 写入 tag。
+# 开发仓库固定为 dev，发布时由 CI 写入 tag。
 version = "dev"
 
 
@@ -221,24 +221,18 @@ config = {
     'links': {
         'default': {
             'github': 'https://github.com/etg227/wuwa_pilot',
-            'discord': 'https://discord.gg/vVyCatEBgA',
-            'sponsor': 'https://patreon.com/ok_oldking',
             'share': 'Download Wuwa Pilot from https://github.com/etg227/wuwa_pilot/releases',
-            'faq': 'https://ok-script.com/ok-ww/'
+            'faq': 'https://github.com/etg227/wuwa_pilot/issues'
         },
         'zh_CN': {
             'github': 'https://github.com/etg227/wuwa_pilot',
-            'discord': 'https://discord.gg/vVyCatEBgA',
-            'sponsor': 'https://afdian.com/a/ok-oldking',
             'share': '下载 Wuwa Pilot https://github.com/etg227/wuwa_pilot/releases',
-            'faq': 'https://ok-script.com/ok-ww',
-            'qq_group': 'https://qm.qq.com/q/SUQpIpmq4',
-            'qq_channel': 'https://pd.qq.com/s/djmm6l44y',
+            'faq': 'https://github.com/etg227/wuwa_pilot/issues',
         },
     },
     'about': """
     <p style="color:red;">
-    <strong>本软件是免费开源的。</strong> 如果你被收费，请立即退款。请访问QQ频道或GitHub下载最新的官方版本。
+    <strong>本软件是免费开源的。</strong> 如果你被收费，请立即退款。请从本项目 GitHub Releases 下载最新版本。
     </p>
     <p style="color:red;">
         <strong>本软件仅供个人使用，用于学习Python编程、计算机视觉、UI自动化等。</strong> 请勿将其用于任何营利性或商业用途。
@@ -250,8 +244,8 @@ config = {
     'screenshots_folder': "screenshots",
     'gui_title': 'Wuwa Pilot',  # Optional
     # 'coco_feature_folder': get_path(__file__, 'assets/coco_feature'),  # required if using feature detection
-    'log_file': 'logs/ok-ww.log',  # Optional, auto rotating every day
-    'error_log_file': 'logs/ok-ww_error.log',
+    'log_file': 'logs/wuwa-pilot.log',  # Optional, auto rotating every day
+    'error_log_file': 'logs/wuwa-pilot_error.log',
     'launcher_log_file': 'logs/launcher.log',
     'launcher_error_log_file': 'logs/launcher_error.log',
     'version': version,

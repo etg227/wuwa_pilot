@@ -1,4 +1,4 @@
-# OK-WW Character Patterns
+# Wuwa Pilot Character Patterns
 
 ## Files To Inspect
 

@@ -597,8 +597,8 @@ msgid "not enough stamina"
 msgstr "体力不足"
 
 msgid ""
-"Click skill failed, check if the keybinding is correct in ok-ww settings!"
-msgstr "释放技能失败, 请检查ok-ww按键设置是正确!"
+"Click skill failed, check if the keybinding is correct in Wuwa Pilot settings!"
+msgstr "释放技能失败, 请检查 Wuwa Pilot 按键设置是否正确!"
 
 msgid "Change Time to Night"
 msgstr "自动切换时间到晚上"
@@ -1232,8 +1232,8 @@ msgstr "📅 每日任务"
 msgid "🩺 Diagnosis"
 msgstr "🩺 诊断"
 
-msgid "⬆️ 批量强化声骸(游戏与okww语言必须为简体/繁体中文)"
-msgstr "⬆️ 批量强化声骸（游戏与okww语言必须为简体/繁体中文）"
+msgid "⬆️ 批量强化声骸(游戏与 Wuwa Pilot 语言必须为简体/繁体中文)"
+msgstr "⬆️ 批量强化声骸（游戏与 Wuwa Pilot 语言必须为简体/繁体中文）"
 
 msgid "🌀 Farm 4C Echo in Dungeon/World"
 msgstr "🌀 副本/大世界刷4C声骸"
@@ -1280,5 +1280,5 @@ msgstr "点击B进入背包，在过滤器中选择需要修改主属性的声�
 msgid "点击B进入背包, 在过滤器中选择需要强化的声骸, 并按照等级从0排序后开始."
 msgstr "点击B进入背包，在过滤器中选择需要强化的声骸，并按等级从0开始排序后运行。"
 
-msgid "游戏与okww语言必须为简体/繁体中文,必须16:9分辨率,使用1600x900以上分辨率, 勾选需要的, 没勾的都会自动合成"
-msgstr "游戏与okww语言必须为简体/繁体中文，分辨率必须为16:9且不低于1600x900。勾选需要保留的声骸，未勾选的会自动合成。"
+msgid "游戏与 Wuwa Pilot 语言必须为简体/繁体中文,必须16:9分辨率,使用1600x900以上分辨率, 勾选需要的, 没勾的都会自动合成"
+msgstr "游戏与 Wuwa Pilot 语言必须为简体/繁体中文，分辨率必须为16:9且不低于1600x900。勾选需要保留的声骸，未勾选的会自动合成。"
