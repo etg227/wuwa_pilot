@@ -4,7 +4,7 @@
 
   [![版本](https://img.shields.io/badge/version-beta1.0-orange)](https://github.com/etg227/wuwa_pilot/releases)
   [![平台](https://img.shields.io/badge/platform-Windows-blue)](#运行要求)
-  [![许可证](https://img.shields.io/badge/license-GPL--3.0-green)](LICENSE.txt)
+  [![许可证](https://img.shields.io/badge/license-AGPL--3.0-green)](LICENSE.txt)
 </div>
 
 > [!WARNING]
@@ -123,6 +123,6 @@ Wuwa Pilot 基于 [ok-oldking/ok-wuthering-waves](https://github.com/ok-oldking/
 
 ## 许可证与风险说明
 
-本项目沿用 [GPL-3.0](LICENSE.txt) 许可证，免费开源，禁止冒充官方或对免费软件进行欺诈性收费。
+本项目沿用 [AGPL-3.0](LICENSE.txt) 许可证，免费开源，禁止冒充官方或对免费软件进行欺诈性收费。
 
 本软件不读取游戏内存、不修改游戏文件，但会模拟玩家输入。游戏运营方可能将自动战斗、宏脚本或其他第三方自动化认定为违规行为。使用者应自行了解并遵守游戏规则；因使用本软件造成的账号、数据或设备损失，由使用者自行承担。
