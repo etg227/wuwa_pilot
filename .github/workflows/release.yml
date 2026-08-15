@@ -1,0 +1,77 @@
+name: Pre-release
+
+on:
+  push:
+    tags:
+      - "beta*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows-release:
+    name: Test, package and publish
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Test combo axis
+        run: |
+          python -m unittest tests.TestAxisChart tests.TestAxisRunner -v
+          python -m compileall -q src/axis src/gui/AxisControlTab.py src/task/AxisPlaybackTask.py
+
+      - name: Prepare online package
+        shell: pwsh
+        run: Copy-Item pyappify.release.yml pyappify.yml -Force
+
+      - name: Build Windows packages
+        uses: ok-oldking/pyappify-action@91cb0dfeb63d297bc260f2d7efc1a16304fba724
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          version: "v1.1.14"
+          use_release: "https://api.github.com/repos/etg227/wuwa_pilot/releases/tags/beta1.0"
+
+      - name: Check artifacts
+        shell: pwsh
+        run: |
+          $setup = Get-Item "pyappify_dist\wuwa-win32-online-setup.exe"
+          $zip = Get-Item "pyappify_dist\wuwa-win32.zip"
+          $hash = Get-Item "pyappify_dist\win32_sha256.txt"
+
+          if ($setup.Length -lt 1MB) { throw "online installer is unexpectedly small" }
+          if ($zip.Length -lt 1MB) { throw "portable package is unexpectedly small" }
+          if ($hash.Length -lt 64) { throw "SHA256 file is invalid" }
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
+          try {
+            $binary = $archive.Entries | Where-Object { $_.FullName -eq "wuwa/wuwa.exe" }
+            if ($null -eq $binary -or $binary.Length -lt 1MB) {
+              throw "portable package does not contain wuwa/wuwa.exe"
+            }
+          } finally {
+            $archive.Dispose()
+          }
+
+      - name: Publish Pre-release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            "pyappify_dist\wuwa-win32-online-setup.exe" `
+            "pyappify_dist\wuwa-win32.zip" `
+            "pyappify_dist\win32_sha256.txt" `
+            --repo "${{ github.repository }}" `
+            --title "Wuwa Pilot ${{ github.ref_name }}" `
+            --notes-file ".github\RELEASE.md" `
+            --prerelease `
+            --verify-tag
