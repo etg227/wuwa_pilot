@@ -1,4 +1,4 @@
-"""连段轴导入与执行支持。"""
+"""椰果启动器轴导入与执行支持。"""
 
 from src.axis.AxisChart import (
     AxisChart,

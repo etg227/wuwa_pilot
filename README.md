@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Wuwa Pilot</h1>
-  <p>基于 OK-WW 的《鸣潮》图像识别自动化工具，增加 WWCOMBO 社区连段轴导入、预览与执行。</p>
+  <p>基于 OK-WW 的《鸣潮》图像识别自动化工具，增加 WWCOMBO 社区椰果启动器轴导入、预览与执行。</p>
 
   [![版本](https://img.shields.io/github/v/release/etg227/wuwa_pilot?include_prereleases&label=%E7%89%88%E6%9C%AC)](https://github.com/etg227/wuwa_pilot/releases)
   [![平台](https://img.shields.io/badge/platform-Windows-blue)](#运行要求)
@@ -28,7 +28,7 @@
 - `config.py` 里的 `version` 固定为 `dev`，发布时由 CI 自动写入 tag。
 - 不移动或覆盖已经发布的 tag。
 
-## WWCOMBO 连段轴
+## 椰果启动器
 
 Wuwa Pilot 可以读取 [WWCOMBO 社区](https://nova.fb520.site/) 的 `.wwcombo.json` 文件，并按照时间轴转换为实际游戏输入。
 
@@ -47,11 +47,11 @@ Wuwa Pilot 可以读取 [WWCOMBO 社区](https://nova.fb520.site/) 的 `.wwcombo
 ### 使用方法
 
 1. 启动 Wuwa Pilot 并连接《鸣潮》窗口。
-2. 打开左侧“连段轴”。
+2. 打开左侧“椰果启动器”。
 3. 粘贴 `wwc_...` ID/链接，或选择本地 `.wwcombo.json` 文件。
 4. 检查动作映射和实际按键。
 5. 调整播放速度、倒计时、普攻连点间隔和视觉同步。
-6. 点击“执行连段轴”。
+6. 点击“启动椰果”。
 7. 需要立即停止时按 `F10`。
 
 动作映射示例：
@@ -101,7 +101,7 @@ python main.py
 python main_debug.py
 ```
 
-连段轴测试：
+椰果启动器测试：
 
 ```powershell
 python -m unittest tests.TestAxisChart tests.TestAxisRunner -v
@@ -109,9 +109,9 @@ python -m unittest tests.TestAxisChart tests.TestAxisRunner -v
 
 ## 项目来源与致谢
 
-Wuwa Pilot 是 [ok-oldking/ok-wuthering-waves](https://github.com/ok-oldking/ok-wuthering-waves) 的二次开发项目。本次干净重建以该项目 `master` 的 `ca0be964bed6a7cd5553733452c0605a56312483` 为源码快照；详细记录见 [UPSTREAM.md](UPSTREAM.md)。自动化框架来自 [OK-Script](https://ok-script.com)，连段轴格式与社区内容来自 [WWCOMBO](https://nova.fb520.site/)。
+Wuwa Pilot 是 [ok-oldking/ok-wuthering-waves](https://github.com/ok-oldking/ok-wuthering-waves) 的二次开发项目。本次干净重建以该项目 `master` 的 `ca0be964bed6a7cd5553733452c0605a56312483` 为源码快照；详细记录见 [UPSTREAM.md](UPSTREAM.md)。自动化框架来自 [OK-Script](https://ok-script.com)，椰果启动器轴格式与社区内容来自 [WWCOMBO](https://nova.fb520.site/)。
 
-感谢 OK-WW 原作者、OK-Script、WWCOMBO，以及所有分享连段轴的社区作者。社区轴内容归各自作者所有，Wuwa Pilot 只解析用户主动导入的文件。
+感谢 OK-WW 原作者、OK-Script、WWCOMBO，以及所有分享椰果启动器轴的社区作者。社区轴内容归各自作者所有，Wuwa Pilot 只解析用户主动导入的文件。
 
 本项目在功能设计、代码实现、重构、测试和文档整理过程中使用了 AI 辅助。AI 仅作为开发工具，最终代码、发布内容和维护决定由项目维护者审核并负责。
 
@@ -121,7 +121,7 @@ Wuwa Pilot 是 [ok-oldking/ok-wuthering-waves](https://github.com/ok-oldking/ok-
 
 1. 下载上游最新 `master` 的干净源码快照，不复制其 `.git` 目录。
 2. 以 [UPSTREAM.md](UPSTREAM.md) 记录的快照 SHA 为基线比较文件变化。
-3. 将上游变化应用到临时分支，解决与连段轴功能的冲突并运行测试。
+3. 将上游变化应用到临时分支，解决与椰果启动器功能的冲突并运行测试。
 4. 审核无误后，以一个简单提交 `sync upstream` 合入 `master`。
 5. 更新 `UPSTREAM.md` 中的快照 SHA。
 

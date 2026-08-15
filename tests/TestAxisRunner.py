@@ -2,7 +2,7 @@ import threading
 import unittest
 
 from src.axis.AxisChart import AxisChart, OutputBinding
-from src.axis.AxisRunner import AxisRunner, build_axis_events
+from src.axis.AxisRunner import AxisEvent, AxisRunner, build_axis_events
 from tests.TestAxisChart import create_axis_payload
 
 
@@ -92,6 +92,64 @@ class TestAxisRunner(unittest.TestCase):
         self.assertEqual(len(timing), len(events))
         self.assertEqual(len(synced), len(events))
         self.assertTrue(all(item[2] >= 0 and item[3] >= 0 for item in timing))
+
+    def test_successful_sync_wait_is_added_to_timeline_shift(self):
+        now = [10.0]
+
+        class AdvancingStopEvent:
+            @staticmethod
+            def wait(seconds):
+                now[0] += seconds
+                return False
+
+            @staticmethod
+            def is_set():
+                return False
+
+        class TimedOutput(FakeOutput):
+            def tap(self, binding):
+                self.actions.append((binding.code, now[0]))
+
+        binding = OutputBinding("key", "e")
+        events = (
+            AxisEvent(0, 2, 0, "tap", binding, 0, "切人", "switch_2"),
+            AxisEvent(100, 2, 1, "tap", binding, 1, "技能", "skill"),
+        )
+        output = TimedOutput()
+
+        def sync(event):
+            if event.move_id == "switch_2":
+                now[0] += 0.5
+                return True
+            return False
+
+        AxisRunner(clock=lambda: now[0]).run(
+            events,
+            output,
+            AdvancingStopEvent(),
+            sync_callback=sync,
+        )
+
+        self.assertAlmostEqual(output.actions[0][1], 10.0)
+        self.assertAlmostEqual(output.actions[1][1], 10.6)
+
+    def test_stop_during_last_sync_is_reported_as_cancelled(self):
+        stop_event = threading.Event()
+        binding = OutputBinding("key", "2")
+        event = AxisEvent(0, 2, 0, "tap", binding, 0, "切人", "switch_2")
+
+        def sync(_event):
+            stop_event.set()
+            return True
+
+        cancelled = AxisRunner().run(
+            (event,),
+            FakeOutput(),
+            stop_event,
+            sync_callback=sync,
+        )
+
+        self.assertTrue(cancelled)
 
 
 if __name__ == "__main__":

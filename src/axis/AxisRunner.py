@@ -154,6 +154,9 @@ class AxisRunner:
                     sync_started = self.clock()
                     if sync_callback(event):
                         timeline_shift += max(0.0, self.clock() - sync_started)
+                    if stop_event.is_set():
+                        cancelled = True
+                        break
 
                 if progress_callback:
                     progress_callback(100.0 if total_ms <= 0 else min(100.0, event.at_ms / total_ms * 100))

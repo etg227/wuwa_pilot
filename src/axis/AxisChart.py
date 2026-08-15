@@ -71,7 +71,7 @@ class OutputBinding:
 
 @dataclass(frozen=True)
 class AxisChart:
-    """解析后的 wwcombo 连段轴。"""
+    """解析后的 WWCOMBO 椰果启动器轴。"""
 
     chart_id: str
     title: str
@@ -110,7 +110,7 @@ class AxisChart:
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "AxisChart":
         if not isinstance(payload, dict) or payload.get("type") != "wwcombo-chart":
-            raise AxisFormatError("这不是 wwcombo 连段轴文件")
+            raise AxisFormatError("这不是 WWCOMBO 椰果启动器轴文件")
 
         version = _safe_int(payload.get("version"), "version")
         if version < 1 or version > 3:
@@ -131,11 +131,11 @@ class AxisChart:
         steps = tuple(sorted((_parse_step(item, move_labels) for item in raw_steps), key=lambda item: item.start_ms))
         duration_ms = max((step.start_ms + step.duration_ms for step in steps), default=0.0)
         if duration_ms > MAX_AXIS_DURATION_MS:
-            raise AxisFormatError("连段轴总时长超过 30 分钟")
+            raise AxisFormatError("椰果启动器轴总时长超过 30 分钟")
 
         return cls(
             chart_id=str(chart.get("id") or ""),
-            title=str(chart.get("title") or "未命名连段轴"),
+            title=str(chart.get("title") or "未命名椰果启动器轴"),
             version=version,
             steps=steps,
             move_labels=move_labels,

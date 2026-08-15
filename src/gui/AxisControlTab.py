@@ -74,7 +74,7 @@ class AxisControlTab(CustomTab):
 
     @property
     def name(self):
-        return "连段轴"
+        return "椰果启动器"
 
     @property
     def icon(self):
@@ -108,9 +108,9 @@ class AxisControlTab(CustomTab):
         row.addWidget(self.website_button)
         layout.addLayout(row)
 
-        self.chart_summary = BodyLabel("尚未导入连段轴")
+        self.chart_summary = BodyLabel("尚未导入椰果启动器轴")
         layout.addWidget(self.chart_summary)
-        self.add_card("连段轴来源", container)
+        self.add_card("椰果启动器来源", container)
 
     def _build_chart_area(self) -> None:
         container = QWidget(self.view)
@@ -167,7 +167,9 @@ class AxisControlTab(CustomTab):
         self.start_trigger_check.setChecked(bool(self.settings.get("Start Trigger", True)))
         options.addRow("挑战触发", self.start_trigger_check)
 
-        self.visual_sync_check = QCheckBox("切人后等待角色 UI 确认，再继续时间轴", container)
+        self.visual_sync_check = QCheckBox(
+            "切人后等待角色 UI 确认；识别失败或超时会自动继续时间轴", container
+        )
         self.visual_sync_check.setChecked(bool(self.settings.get("Visual Sync", True)))
         options.addRow("视觉同步", self.visual_sync_check)
 
@@ -198,7 +200,7 @@ class AxisControlTab(CustomTab):
         self.stop_button = PushButton("停止并释放按键", container)
         self.stop_button.setEnabled(False)
         self.stop_button.clicked.connect(self._stop_playback)
-        self.play_button = PrimaryPushButton("执行连段轴", container)
+        self.play_button = PrimaryPushButton("启动椰果", container)
         self.play_button.setEnabled(False)
         self.play_button.clicked.connect(self._start_playback)
         buttons.addWidget(self.stop_button)
@@ -223,9 +225,9 @@ class AxisControlTab(CustomTab):
     def _import_local(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "选择连段轴",
+            "选择椰果启动器轴",
             "",
-            "WWCombo 连段轴 (*.wwcombo.json *.json)",
+            "WWCOMBO 椰果启动器轴 (*.wwcombo.json *.json)",
         )
         if not path:
             return
@@ -340,10 +342,10 @@ class AxisControlTab(CustomTab):
     def _start_playback(self) -> None:
         task = self._connect_playback_task()
         if task is None:
-            self._show_error("找不到连段轴播放任务，请重启 Wuwa Pilot")
+            self._show_error("找不到椰果启动器任务，请重启 Wuwa Pilot")
             return
         if self.chart is None:
-            self._show_error("请先导入连段轴")
+            self._show_error("请先导入椰果启动器轴")
             return
         try:
             mappings = self._collect_mappings()
