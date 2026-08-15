@@ -2,7 +2,11 @@ import os
 import re
 from pathlib import Path
 
-from ok import Box, ConfigOption, Icon
+from ok import Box, ConfigOption
+try:
+    from ok import Icon
+except ImportError:
+    from qfluentwidgets import FluentIcon as Icon
 from src.task.process_feature import process_feature
 
 version = "beta1.0"
