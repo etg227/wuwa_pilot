@@ -1,4 +1,5 @@
 import threading
+import time
 
 from PySide6.QtCore import QObject, Signal
 
@@ -11,6 +12,7 @@ class AxisPlaybackSignals(QObject):
     status_changed = Signal(str)
     action_changed = Signal(int, str, str)
     progress_changed = Signal(int)
+    timing_changed = Signal(float, float, float)
     playback_finished = Signal(bool, str)
 
 
@@ -51,6 +53,9 @@ class AxisPlaybackTask(BaseWWTask):
         self._settings_lock = threading.Lock()
         self._stop_event = threading.Event()
         self._playback_settings = None
+        self._visual_sync = False
+        self._sync_timeout = 1.5
+        self._last_timing = None
 
     def configure_playback(
         self,
@@ -60,6 +65,8 @@ class AxisPlaybackTask(BaseWWTask):
         countdown: int,
         repeat_interval_ms: int,
         include_start_trigger: bool,
+        visual_sync: bool = False,
+        sync_timeout: float = 1.5,
     ) -> None:
         if self.running or self.enabled:
             raise RuntimeError("已有连段轴正在执行或等待执行")
@@ -68,7 +75,10 @@ class AxisPlaybackTask(BaseWWTask):
             raise ValueError("这个轴没有可执行的已识别动作")
         with self._settings_lock:
             self._playback_settings = (chart, events, float(speed), int(countdown))
+            self._visual_sync = bool(visual_sync)
+            self._sync_timeout = max(0.2, float(sync_timeout))
         self._stop_event.clear()
+        self._last_timing = None
 
     def request_stop(self) -> None:
         self._stop_event.set()
@@ -103,8 +113,13 @@ class AxisPlaybackTask(BaseWWTask):
                 speed=speed,
                 action_callback=self._on_action,
                 progress_callback=lambda value: self.signals.progress_changed.emit(round(value)),
+                sync_callback=self._sync_after_switch if self._visual_sync else None,
+                timing_callback=self._on_timing,
             )
             message = "已停止并释放全部按键" if cancelled else "连段轴执行完成"
+            if self._last_timing is not None:
+                _, average_ms, max_ms = self._last_timing
+                message += f"｜平均偏差 {average_ms:.1f} ms，最大 {max_ms:.1f} ms"
             self.signals.playback_finished.emit(cancelled, message)
         except Exception as error:
             self.signals.playback_finished.emit(True, f"执行失败：{error}")
@@ -118,3 +133,28 @@ class AxisPlaybackTask(BaseWWTask):
 
     def _on_action(self, event: AxisEvent) -> None:
         self.signals.action_changed.emit(event.step_index, event.label, event.binding.display_text)
+
+    def _on_timing(self, _event: AxisEvent, current_ms: float, average_ms: float, max_ms: float) -> None:
+        self._last_timing = (current_ms, average_ms, max_ms)
+        self.signals.timing_changed.emit(current_ms, average_ms, max_ms)
+
+    def _sync_after_switch(self, event: AxisEvent) -> bool:
+        if event.operation != "tap" or event.move_id not in {"switch_1", "switch_2", "switch_3"}:
+            return False
+
+        expected_slot = int(event.move_id[-1]) - 1
+        deadline = time.monotonic() + self._sync_timeout
+        while not self._stop_event.is_set() and time.monotonic() < deadline:
+            self.next_frame()
+            in_team, current_slot, _ = self.in_team()
+            if in_team and current_slot == expected_slot:
+                return True
+            if self._stop_event.wait(0.03):
+                break
+
+        if not self._stop_event.is_set():
+            self.signals.status_changed.emit(
+                f"切人视觉同步超时：{event.move_id}，继续按时间轴执行"
+            )
+        # 这个事件仍然是同步点；把等待时间计入时间轴，避免后续动作集中补发。
+        return True
