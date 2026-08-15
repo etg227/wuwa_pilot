@@ -2,10 +2,14 @@ import os
 import re
 from pathlib import Path
 
-from ok import Box, ConfigOption, Icon
+from ok import Box, ConfigOption
+try:
+    from ok import Icon
+except ImportError:
+    from qfluentwidgets import FluentIcon as Icon
 from src.task.process_feature import process_feature
 
-version = "dev"
+version = "beta1.0"
 
 
 def _find_most_recently_run_pc_exe():
@@ -157,7 +161,10 @@ config = {
     'blur_area': blur_area,
     'gui_icon': 'icons/icon.png',
     'global_configs': [key_config_option, char_config_option, monthly_card_config_option],
-    'custom_tabs': [["src.gui.CharacterCodeTab", "CharacterCodeTab"]],
+    'custom_tabs': [
+        ["src.gui.AxisControlTab", "AxisControlTab"],
+        ["src.gui.CharacterCodeTab", "CharacterCodeTab"],
+    ],
     'ocr': {
         'lib': 'onnxocr',
         'auto_simplify': True,
@@ -212,17 +219,17 @@ config = {
     },
     'links': {
         'default': {
-            'github': 'https://github.com/ok-oldking/ok-wuthering-waves',
+            'github': 'https://github.com/etg227/wuwa_pilot',
             'discord': 'https://discord.gg/vVyCatEBgA',
             'sponsor': 'https://patreon.com/ok_oldking',
-            'share': 'Download OK-WW from https://ok-script.com/ok-ww',
+            'share': 'Download Wuwa Pilot from https://github.com/etg227/wuwa_pilot/releases',
             'faq': 'https://ok-script.com/ok-ww/'
         },
         'zh_CN': {
-            'github': 'https://github.com/ok-oldking/ok-wuthering-waves',
+            'github': 'https://github.com/etg227/wuwa_pilot',
             'discord': 'https://discord.gg/vVyCatEBgA',
             'sponsor': 'https://afdian.com/a/ok-oldking',
-            'share': '下载okww https://ok-script.com/ok-ww',
+            'share': '下载 Wuwa Pilot https://github.com/etg227/wuwa_pilot/releases',
             'faq': 'https://ok-script.com/ok-ww',
             'qq_group': 'https://qm.qq.com/q/SUQpIpmq4',
             'qq_channel': 'https://pd.qq.com/s/djmm6l44y',
@@ -240,7 +247,7 @@ config = {
     </p>
 """,
     'screenshots_folder': "screenshots",
-    'gui_title': 'OK-WW',  # Optional
+    'gui_title': 'Wuwa Pilot',  # Optional
     # 'coco_feature_folder': get_path(__file__, 'assets/coco_feature'),  # required if using feature detection
     'log_file': 'logs/ok-ww.log',  # Optional, auto rotating every day
     'error_log_file': 'logs/ok-ww_error.log',
@@ -259,6 +266,8 @@ config = {
         ["src.task.EnhanceEchoTask", "EnhanceEchoTask"],
         ["src.task.ChangeEchoTask", "ChangeEchoTask"],
         ["src.task.GardenTask", "GardenTask"],
+        # 隐藏任务放在末尾，避免改变现有命令行 -t 参数的任务序号。
+        ["src.task.AxisPlaybackTask", "AxisPlaybackTask"],
         # ["src.task.DiagnosisTask", "DiagnosisTask"],
     ], 'trigger_tasks': [
         ["src.task.AutoCombatTask", "AutoCombatTask"],
@@ -268,10 +277,4 @@ config = {
         ["src.task.FastTravelTask", "FastTravelTask"],
         ["src.task.MouseResetTask", "MouseResetTask"],
     ], 'scene': ["src.scene.WWScene", "WWScene"],
-    'update_pyappify': {
-        'to_version': '1.1.9',
-        'zip_url': 'https://github.com/ok-oldking/ok-wuthering-waves/releases/download/v3.5.17/ok-ww-win32.zip',
-        'sha256': '0ad4d89aae5995641136eb977536a05d2f9c567c9a43ab16c670a947bc301531',
-    }
-
 }
