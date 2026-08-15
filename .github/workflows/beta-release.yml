@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'beta*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -36,7 +37,8 @@ jobs:
       - name: 发布 GitHub 预发行版
         uses: softprops/action-gh-release@v2
         with:
-          name: Wuwa Pilot beta1.0
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'beta1.0' }}
+          name: Wuwa Pilot ${{ github.ref_type == 'tag' && github.ref_name || 'beta1.0' }}
           body_path: .github/RELEASE_beta1.0.md
           prerelease: true
           files: pyappify_dist/*
