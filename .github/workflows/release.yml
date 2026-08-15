@@ -1,93 +1,260 @@
-name: Release
+name: Windows Release
+run-name: Windows release · ${{ github.ref_name }}
+
+# 流程与上游 ok-oldking/ok-wuthering-waves 的 build.yml 一致（去掉代码签名、cnb 镜像和 Mirror酱）：
+# 1. validate    跑全部测试
+# 2. synchronize 把 deploy.txt 列出的运行时文件同步到更新仓库 wuwa_pilot-update
+# 3. package     只有正式版 tag（vX.Y.Z，不带 -beta）才构建安装包
+# 4. publish     发布 GitHub Release
+# beta tag（v1.0.0-beta.2 这类）只执行 1 和 2，供已安装用户升级，不出安装包。
 
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
+env:
+  PYTHON_VERSION: '3.12'
+  PYTHONIOENCODING: 'UTF-8'
+  PYTHONLEGACYWINDOWSSTDIO: 'UTF-8'
+  BUILD_EXE: 'true'
+#  USE_RELEASE: 'https://api.github.com/repos/etg227/wuwa_pilot/releases/tags/v1.0.0'
+
 jobs:
-  windows-release:
-    name: Test, package and publish
+  validate:
+    name: 1 · Validate
     runs-on: windows-latest
 
     steps:
+      - name: Configure runner
+        shell: pwsh
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global user.email "144003800+etg227@users.noreply.github.com"
+          git config --global user.name "etg227"
+
       - name: Check out source
-        uses: actions/checkout@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/checkout@v4
         with:
-          python-version: "3.12"
+          submodules: true
+          lfs: true
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Check version tag
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+
+      - name: Prepare release requirements
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python -m ok.update.inline_ok_requirements --tag "$env:RELEASE_TAG"
+
+      - name: Run tests
+        env:
+          GITHUB_TOKEN: ''
+          GH_TOKEN: ''
+          UPDATE_REPO_TOKEN: ''
+          ACTIONS_RUNTIME_TOKEN: ''
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ''
+        run: |
+          @(
+            'GITHUB_TOKEN',
+            'GH_TOKEN',
+            'UPDATE_REPO_TOKEN',
+            'ACTIONS_RUNTIME_TOKEN',
+            'ACTIONS_ID_TOKEN_REQUEST_TOKEN'
+          ) | ForEach-Object {
+            Remove-Item "Env:\$_" -ErrorAction SilentlyContinue
+          }
+
+          Get-ChildItem -Path ".\tests\*.py" | ForEach-Object {
+            Write-Host "Running tests in $($_.FullName)"
+            python -m unittest $_.FullName
+
+            if ($LASTEXITCODE -ne 0) {
+              throw "Tests failed in $($_.FullName)"
+            }
+          }
+
+  synchronize:
+    name: 2 · Synchronize update repository
+    needs: validate
+    runs-on: windows-latest
+    outputs:
+      is_release: ${{ steps.release_version.outputs.is_release }}
+      start_tag: ${{ steps.sync.outputs.start_tag }}
+      end_tag: ${{ steps.sync.outputs.end_tag }}
+      changes: ${{ steps.sync.outputs.changes_with_asterisk }}
+
+    steps:
+      - name: Configure runner
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-          # pyappify 只解析 v主.次.补丁[-alpha|beta|rc[.N]]，其他 tag 会被当作没有版本。
-          if ($tag -notmatch '^v\d+\.\d+\.\d+(-(alpha|beta|rc)(\.\d+)?)?$') {
-            throw "tag '$tag' is not a pyappify version tag, expected v1.0.0 or v1.0.0-beta.2"
-          }
-          $declared = (Select-String -Path config.py -Pattern '^version = "(.+)"$').Matches[0].Groups[1].Value
-          if ($declared -ne $tag) {
-            throw "config.py version '$declared' does not match tag '$tag'"
-          }
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global user.email "144003800+etg227@users.noreply.github.com"
+          git config --global user.name "etg227"
 
-      - name: Test combo axis
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: true
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
         run: |
-          python -m unittest tests.TestAxisChart tests.TestAxisRunner -v
-          python -m compileall -q src/axis src/gui/AxisControlTab.py src/task/AxisPlaybackTask.py
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
 
-      - name: Prepare online package
+      - name: Prepare release requirements
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python -m ok.update.inline_ok_requirements --tag "$env:RELEASE_TAG"
+
+      - name: Check release version
+        id: release_version
+        if: env.BUILD_EXE == 'true'
         shell: pwsh
-        run: Copy-Item pyappify.release.yml pyappify.yml -Force
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $isRelease = $env:RELEASE_TAG -match '^v?\d+\.\d+\.\d+$'
+          "is_release=$($isRelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          Write-Host "Release version: $isRelease"
 
-      - name: Build Windows packages
-        uses: ok-oldking/pyappify-action@91cb0dfeb63d297bc260f2d7efc1a16304fba724
+      - name: Synchronize update repository
+        id: sync
+        uses: ok-oldking/partial-sync-repo@master
+        with:
+          repos: |
+            https://etg227:${{ secrets.UPDATE_REPO_TOKEN }}@github.com/etg227/wuwa_pilot-update.git
+          sync_list: 'deploy.txt'
+          tag: ${{ github.ref_name }}
+          gitignore_file: '.update_repo_gitignore'
+          show_author: true
+
+  package:
+    name: 3 · Build installers
+    needs: synchronize
+    if: needs.synchronize.outputs.is_release == 'true'
+    runs-on: windows-latest
+
+    steps:
+      - name: Configure runner
+        shell: pwsh
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global user.email "144003800+etg227@users.noreply.github.com"
+          git config --global user.name "etg227"
+
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: true
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+
+      - name: Prepare release requirements
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python -m ok.update.inline_ok_requirements --tag "$env:RELEASE_TAG"
+
+      - name: Reuse base executable
+        uses: ok-oldking/pyappify-action@master
+        if: env.BUILD_EXE == 'true' && env.USE_RELEASE != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          use_release: ${{ env.USE_RELEASE }}
+
+      - name: Build installers
+        uses: ok-oldking/pyappify-action@master
+        if: env.BUILD_EXE == 'true' && env.USE_RELEASE == ''
+
+      - name: Stage release assets
+        uses: actions/upload-artifact@v4
+        if: env.BUILD_EXE == 'true'
+        with:
+          name: release-assets
+          path: pyappify_dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: 4 · Publish
+    needs: [ synchronize, package ]
+    if: needs.synchronize.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: pyappify_dist
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          version: "v1.1.14"
-          use_release: "https://api.github.com/repos/etg227/wuwa_pilot/releases/tags/beta1.0"
-
-      - name: Check artifacts
-        shell: pwsh
-        run: |
-          $setup = Get-Item "pyappify_dist\wuwa-win32-online-setup.exe"
-          $zip = Get-Item "pyappify_dist\wuwa-win32.zip"
-          $hash = Get-Item "pyappify_dist\win32_sha256.txt"
-
-          if ($setup.Length -lt 1MB) { throw "online installer is unexpectedly small" }
-          if ($zip.Length -lt 1MB) { throw "portable package is unexpectedly small" }
-          if ($hash.Length -lt 64) { throw "SHA256 file is invalid" }
-
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
-          try {
-            $binary = $archive.Entries | Where-Object { $_.FullName -eq "wuwa/wuwa.exe" }
-            if ($null -eq $binary -or $binary.Length -lt 1MB) {
-              throw "portable package does not contain wuwa/wuwa.exe"
-            }
-          } finally {
-            $archive.Dispose()
-          }
-
-      - name: Publish release
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          $tag = "${{ github.ref_name }}"
-          $releaseArgs = @(
-            "pyappify_dist\wuwa-win32-online-setup.exe",
-            "pyappify_dist\wuwa-win32.zip",
-            "pyappify_dist\win32_sha256.txt",
-            "--repo", "${{ github.repository }}",
-            "--title", "Wuwa Pilot $tag",
-            "--notes-file", ".github\RELEASE.md",
-            "--verify-tag"
-          )
-          if ($tag -match '-(alpha|beta|rc)') { $releaseArgs += "--prerelease" }
-          gh release create $tag @releaseArgs
+          body: |
+            ### 更新日志 ${{ needs.synchronize.outputs.start_tag }} -> ${{ needs.synchronize.outputs.end_tag }}:
+              ${{ needs.synchronize.outputs.changes }}
+            ### 下载说明
+              * 下载名称包含 `setup.exe` 的在线安装包，安装与自动更新使用更新仓库 [wuwa_pilot-update](https://github.com/etg227/wuwa_pilot-update)。
+              * 不要下载 `Source code` 和 `wuwa-win32.zip`。
+            ### 风险说明
+              本项目会模拟键盘和鼠标输入，可能被游戏运营方认定为违规第三方自动化工具。请阅读 README 并自行承担使用风险。
+          draft: false
+          prerelease: false
+          files: pyappify_dist/*

@@ -3,8 +3,8 @@ uac: true
 icon: "icons/icon.png"
 
 profiles:
-  - name: "Windows"
-    git_url: "https://github.com/etg227/wuwa_pilot.git"
+  - name: "Global"
+    git_url: "https://github.com/etg227/wuwa_pilot-update.git"
     admin: true
     main_script: "main.py"
     requires_python: "3.12"

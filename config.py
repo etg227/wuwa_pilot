@@ -9,7 +9,8 @@ except ImportError:
     from qfluentwidgets import FluentIcon as Icon
 from src.task.process_feature import process_feature
 
-version = "v1.0.0-beta.2"
+# 与上游一致：开发仓库固定为 dev，发布时由 CI 的 inline_ok_requirements 写入 tag。
+version = "dev"
 
 
 def _find_most_recently_run_pc_exe():

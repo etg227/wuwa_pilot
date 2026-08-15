@@ -1,7 +1,0 @@
-name: "wuwa"
-uac: true
-icon: "icons/icon.png"
-
-# The online installer and portable launcher do not embed a full Python profile.
-# Keeping this list empty avoids a second multi-gigabyte NSIS bundle.
-profiles: []
