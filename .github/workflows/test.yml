@@ -1,7 +1,5 @@
 name: Run Tests
 
-# 与上游 test.yml 一致；额外在 push 到 master 时也触发，因为本仓库常直接推 master。
-
 on:
   pull_request:
   push:
@@ -65,16 +63,4 @@ jobs:
             Remove-Item "Env:\$_" -ErrorAction SilentlyContinue
           }
 
-          Get-ChildItem -Path ".\tests\*.py" | ForEach-Object {
-              Write-Host "Running tests in $($_.FullName)"
-              try {
-                  python -m unittest $_.FullName
-
-                  if ($LASTEXITCODE -ne 0) {
-                      throw "Tests failed in $($_.FullName)"
-                  }
-              } catch {
-                  Write-Error $_
-                  exit 1
-              }
-          }
+          python run_tests.py

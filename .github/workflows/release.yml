@@ -1,7 +1,6 @@
 name: Windows Release
 run-name: Windows release · ${{ github.ref_name }}
 
-# 流程与上游 ok-oldking/ok-wuthering-waves 的 build.yml 一致（去掉代码签名、cnb 镜像和 Mirror酱）：
 # 1. validate    跑全部测试
 # 2. synchronize 把 deploy.txt 列出的运行时文件同步到更新仓库 wuwa_pilot-update
 # 3. package     只有正式版 tag（vX.Y.Z，不带 -beta）才构建安装包
@@ -87,14 +86,7 @@ jobs:
             Remove-Item "Env:\$_" -ErrorAction SilentlyContinue
           }
 
-          Get-ChildItem -Path ".\tests\*.py" | ForEach-Object {
-            Write-Host "Running tests in $($_.FullName)"
-            python -m unittest $_.FullName
-
-            if ($LASTEXITCODE -ne 0) {
-              throw "Tests failed in $($_.FullName)"
-            }
-          }
+          python run_tests.py
 
   synchronize:
     name: 2 · Synchronize update repository
@@ -242,7 +234,7 @@ jobs:
         run: python -m ok.update.inline_ok_requirements --tag "$env:RELEASE_TAG"
 
       - name: Reuse base executable
-        uses: ok-oldking/pyappify-action@91cb0dfeb63d297bc260f2d7efc1a16304fba724 # master on 2026-08-15
+        uses: ok-oldking/pyappify-action@227bbb9f989febc79f8c22fa2325d90d190d3d44 # master on 2026-08-15
         if: env.BUILD_EXE == 'true' && env.USE_RELEASE != ''
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -250,7 +242,7 @@ jobs:
           use_release: ${{ env.USE_RELEASE }}
 
       - name: Build installers
-        uses: ok-oldking/pyappify-action@91cb0dfeb63d297bc260f2d7efc1a16304fba724 # master on 2026-08-15
+        uses: ok-oldking/pyappify-action@227bbb9f989febc79f8c22fa2325d90d190d3d44 # master on 2026-08-15
         if: env.BUILD_EXE == 'true' && env.USE_RELEASE == ''
 
       - name: Stage release assets
