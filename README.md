@@ -102,9 +102,14 @@ Wuwa Pilot 基于 [ok-oldking/ok-wuthering-waves](https://github.com/ok-oldking/
 
 感谢 OK-WW、OK-Script、WWCOMBO 的开发者，以及所有分享社区轴的作者。社区轴内容归各自作者所有，Wuwa Pilot 只解析用户主动导入的文件。
 
-## AI 辅助说明
+## 使用过的开发工具与模型
 
-本项目在功能设计、代码实现、重构、测试和文档整理过程中使用了 AI 辅助。AI 仅作为开发工具，最终代码、发布内容和维护决定由项目维护者审核并负责。
+本项目开发过程中使用了 AI 模型与开发工具进行辅助。
+
+| AI 模型 |
+| --- |
+| ChatGPT |
+| Claude |
 
 ## 许可证
 
