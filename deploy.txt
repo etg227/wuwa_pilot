@@ -2,9 +2,10 @@ src
 ok
 config.py
 main.py
-wuwa.exe
 readme
 README.md
+LICENSE.txt
+UPSTREAM.md
 assets
 icons
 requirements.txt
