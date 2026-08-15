@@ -39,6 +39,7 @@ class TestAxisRunner(unittest.TestCase):
         repeat_events = [event for event in events if event.step_index == 0]
         self.assertEqual(len(repeat_events), 2)
         self.assertEqual(repeat_events[0].at_ms, 123.5)
+        self.assertEqual(repeat_events[0].move_id, "skill")
 
     def test_runner_releases_held_key_when_later_output_fails(self):
         hold = OutputBinding("key", "lshift", "hold")
@@ -64,6 +65,33 @@ class TestAxisRunner(unittest.TestCase):
             AxisRunner().run(events, output, threading.Event(), speed=100)
 
         self.assertEqual(output.actions, [("down", "lshift:hold"), ("tap", "e"), ("up", "lshift:hold")])
+
+    def test_runner_reports_timing_and_calls_sync_hook(self):
+        chart = AxisChart.from_dict(create_axis_payload())
+        mappings = {
+            "start_challenge": None,
+            "skill": OutputBinding("key", "e"),
+            "dodge_hold": OutputBinding("key", "lshift", "hold"),
+        }
+        events = build_axis_events(chart, mappings, include_start_trigger=False)
+        output = FakeOutput()
+        timing = []
+        synced = []
+
+        AxisRunner().run(
+            events,
+            output,
+            threading.Event(),
+            speed=100,
+            sync_callback=lambda event: synced.append(event.move_id) or False,
+            timing_callback=lambda event, current, average, maximum: timing.append(
+                (event.move_id, current, average, maximum)
+            ),
+        )
+
+        self.assertEqual(len(timing), len(events))
+        self.assertEqual(len(synced), len(events))
+        self.assertTrue(all(item[2] >= 0 and item[3] >= 0 for item in timing))
 
 
 if __name__ == "__main__":
