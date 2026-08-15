@@ -25,6 +25,7 @@ class AxisEvent:
     binding: OutputBinding = field(compare=False)
     step_index: int = field(compare=False)
     label: str = field(compare=False)
+    move_id: str = field(compare=False, default="")
 
 
 def build_axis_events(
@@ -49,7 +50,7 @@ def build_axis_events(
     if include_start_trigger and chart.start_trigger_move_id:
         move_id = chart.start_trigger_move_id
         if binding := mappings.get(move_id):
-            append_event(AxisEvent(0, 2, sequence, "tap", binding, -1, chart.label_for(move_id)))
+            append_event(AxisEvent(0, 2, sequence, "tap", binding, -1, chart.label_for(move_id), move_id))
             sequence += 1
 
     for step_index, step in enumerate(chart.steps):
@@ -60,18 +61,33 @@ def build_axis_events(
             offset = 0.0
             while offset < max(step.duration_ms, 1):
                 append_event(
-                    AxisEvent(step.start_ms + offset, 2, sequence, "tap", binding, step_index, step.label)
+                    AxisEvent(
+                        step.start_ms + offset,
+                        2,
+                        sequence,
+                        "tap",
+                        binding,
+                        step_index,
+                        step.label,
+                        step.move_id,
+                    )
                 )
                 sequence += 1
                 offset += repeat_interval_ms
         elif binding.mode == "hold":
-            append_event(AxisEvent(step.start_ms, 1, sequence, "down", binding, step_index, step.label))
+            append_event(
+                AxisEvent(step.start_ms, 1, sequence, "down", binding, step_index, step.label, step.move_id)
+            )
             sequence += 1
             release_at = step.start_ms + max(step.duration_ms, 40)
-            append_event(AxisEvent(release_at, 0, sequence, "up", binding, step_index, step.label))
+            append_event(
+                AxisEvent(release_at, 0, sequence, "up", binding, step_index, step.label, step.move_id)
+            )
             sequence += 1
         else:
-            append_event(AxisEvent(step.start_ms, 2, sequence, "tap", binding, step_index, step.label))
+            append_event(
+                AxisEvent(step.start_ms, 2, sequence, "tap", binding, step_index, step.label, step.move_id)
+            )
             sequence += 1
     return tuple(sorted(events))
 
@@ -90,6 +106,8 @@ class AxisRunner:
         speed: float = 1.0,
         action_callback: Callable[[AxisEvent], None] | None = None,
         progress_callback: Callable[[float], None] | None = None,
+        sync_callback: Callable[[AxisEvent], bool] | None = None,
+        timing_callback: Callable[[AxisEvent, float, float, float], None] | None = None,
     ) -> bool:
         if speed <= 0:
             raise ValueError("播放速度必须大于 0")
@@ -97,11 +115,15 @@ class AxisRunner:
         held: dict[OutputBinding, int] = {}
         notified_steps = set()
         start = self.clock()
+        timeline_shift = 0.0
         total_ms = max((event.at_ms for event in events), default=0.0)
+        timing_count = 0
+        timing_abs_total = 0.0
+        timing_abs_max = 0.0
         cancelled = False
         try:
             for event in events:
-                target = start + event.at_ms / 1000 / speed
+                target = start + event.at_ms / 1000 / speed + timeline_shift
                 remaining = target - self.clock()
                 if remaining > 0 and stop_event.wait(remaining):
                     cancelled = True
@@ -110,11 +132,29 @@ class AxisRunner:
                     cancelled = True
                     break
 
+                drift_ms = (self.clock() - target) * 1000
+                timing_count += 1
+                timing_abs_total += abs(drift_ms)
+                timing_abs_max = max(timing_abs_max, abs(drift_ms))
+                if timing_callback:
+                    timing_callback(
+                        event,
+                        drift_ms,
+                        timing_abs_total / timing_count,
+                        timing_abs_max,
+                    )
+
                 if event.step_index not in notified_steps:
                     notified_steps.add(event.step_index)
                     if action_callback:
                         action_callback(event)
                 self._execute_event(event, output, held)
+
+                if sync_callback:
+                    sync_started = self.clock()
+                    if sync_callback(event):
+                        timeline_shift += max(0.0, self.clock() - sync_started)
+
                 if progress_callback:
                     progress_callback(100.0 if total_ms <= 0 else min(100.0, event.at_ms / total_ms * 100))
         finally:
