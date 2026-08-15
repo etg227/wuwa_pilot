@@ -33,12 +33,18 @@ jobs:
       - name: 构建 Windows 安装包
         id: build-app
         uses: ok-oldking/pyappify-action@master
+        continue-on-error: true
 
       - name: 发布 GitHub 预发行版
+        if: always()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'beta1.0' }}
           name: Wuwa Pilot ${{ github.ref_type == 'tag' && github.ref_name || 'beta1.0' }}
           body_path: .github/RELEASE_beta1.0.md
           prerelease: true
-          files: pyappify_dist/*
+          fail_on_unmatched_files: true
+          files: |
+            pyappify_dist/*-online-setup.exe
+            pyappify_dist/*.zip
+            pyappify_dist/*_sha256.txt
