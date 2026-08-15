@@ -53,6 +53,8 @@ class AxisControlTab(CustomTab):
                 "Countdown": 3,
                 "Repeat Interval": 110,
                 "Start Trigger": True,
+                "Visual Sync": True,
+                "Sync Timeout": 1.5,
                 "Move Mappings": {},
             },
         )
@@ -164,13 +166,26 @@ class AxisControlTab(CustomTab):
         self.start_trigger_check = QCheckBox("播放开始时自动触发轴内的“开始”按键", container)
         self.start_trigger_check.setChecked(bool(self.settings.get("Start Trigger", True)))
         options.addRow("挑战触发", self.start_trigger_check)
+
+        self.visual_sync_check = QCheckBox("切人后等待角色 UI 确认，再继续时间轴", container)
+        self.visual_sync_check.setChecked(bool(self.settings.get("Visual Sync", True)))
+        options.addRow("视觉同步", self.visual_sync_check)
+
+        self.sync_timeout_spin = QDoubleSpinBox(container)
+        self.sync_timeout_spin.setRange(0.2, 3.0)
+        self.sync_timeout_spin.setSingleStep(0.1)
+        self.sync_timeout_spin.setValue(float(self.settings.get("Sync Timeout", 1.5)))
+        self.sync_timeout_spin.setSuffix(" 秒")
+        options.addRow("同步超时", self.sync_timeout_spin)
         layout.addLayout(options)
 
         self.current_input_label = QLabel("当前按键：无", container)
         self.current_action_label = QLabel("程序输出：等待", container)
+        self.timing_label = QLabel("时间偏差：等待", container)
         self.status_label = BodyLabel("导入轴后即可执行；F10 可随时紧急停止。")
         layout.addWidget(self.current_input_label)
         layout.addWidget(self.current_action_label)
+        layout.addWidget(self.timing_label)
         layout.addWidget(self.status_label)
 
         self.progress = QProgressBar(container)
@@ -200,6 +215,7 @@ class AxisControlTab(CustomTab):
         signals.status_changed.connect(self.status_label.setText)
         signals.action_changed.connect(self._action_changed)
         signals.progress_changed.connect(self.progress.setValue)
+        signals.timing_changed.connect(self._timing_changed)
         signals.playback_finished.connect(self._playback_finished)
         self.task_signals_connected = True
         return self.playback_task
@@ -253,6 +269,7 @@ class AxisControlTab(CustomTab):
         )
         self.status_label.setText(f"已导入：{source}")
         self.progress.setValue(0)
+        self.timing_label.setText("时间偏差：等待")
         self._fill_mapping_table()
         self._fill_timeline_table()
         self.play_button.setEnabled(True)
@@ -323,7 +340,7 @@ class AxisControlTab(CustomTab):
     def _start_playback(self) -> None:
         task = self._connect_playback_task()
         if task is None:
-            self._show_error("找不到连段轴播放任务，请重启 OK-WW")
+            self._show_error("找不到连段轴播放任务，请重启 Wuwa Pilot")
             return
         if self.chart is None:
             self._show_error("请先导入连段轴")
@@ -338,12 +355,15 @@ class AxisControlTab(CustomTab):
                 self.countdown_spin.value(),
                 self.repeat_spin.value(),
                 self.start_trigger_check.isChecked(),
+                self.visual_sync_check.isChecked(),
+                self.sync_timeout_spin.value(),
             )
             task.start()
         except Exception as error:
             self._show_error(str(error))
             return
         self.progress.setValue(0)
+        self.timing_label.setText("时间偏差：等待")
         self.play_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.status_label.setText("已加入任务队列")
@@ -364,6 +384,11 @@ class AxisControlTab(CustomTab):
         if step_index >= 0 and step_index < self.timeline_table.rowCount():
             self.timeline_table.selectRow(step_index)
 
+    def _timing_changed(self, current_ms: float, average_ms: float, max_ms: float) -> None:
+        self.timing_label.setText(
+            f"时间偏差：当前 {current_ms:+.1f} ms｜平均 {average_ms:.1f} ms｜最大 {max_ms:.1f} ms"
+        )
+
     def _playback_finished(self, _cancelled: bool, message: str) -> None:
         self.status_label.setText(message)
         self.current_action_label.setText("程序输出：等待")
@@ -382,6 +407,8 @@ class AxisControlTab(CustomTab):
         self.settings["Countdown"] = self.countdown_spin.value()
         self.settings["Repeat Interval"] = self.repeat_spin.value()
         self.settings["Start Trigger"] = self.start_trigger_check.isChecked()
+        self.settings["Visual Sync"] = self.visual_sync_check.isChecked()
+        self.settings["Sync Timeout"] = self.sync_timeout_spin.value()
 
     def _show_error(self, message: str) -> None:
         show_info_bar(self.window(), message, title="错误", error=True)
