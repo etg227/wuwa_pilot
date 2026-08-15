@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="icons/icon.png" alt="Wuwa Pilot Logo" width="220">
   <h1>Wuwa Pilot</h1>
   <p>《鸣潮》图像识别自动化工具，支持日常任务、自动战斗与 WWCOMBO 椰果启动器。</p>
 
