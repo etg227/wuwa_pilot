@@ -9,7 +9,7 @@ except ImportError:
     from qfluentwidgets import FluentIcon as Icon
 from src.task.process_feature import process_feature
 
-version = "beta1.0"
+version = "v1.0.0-beta.2"
 
 
 def _find_most_recently_run_pc_exe():

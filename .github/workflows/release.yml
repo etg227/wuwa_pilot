@@ -1,9 +1,9 @@
-name: Pre-release
+name: Release
 
 on:
   push:
     tags:
-      - "beta*"
+      - "v*"
 
 permissions:
   contents: write
@@ -21,6 +21,19 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+
+      - name: Check version tag
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          # pyappify 只解析 v主.次.补丁[-alpha|beta|rc[.N]]，其他 tag 会被当作没有版本。
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-(alpha|beta|rc)(\.\d+)?)?$') {
+            throw "tag '$tag' is not a pyappify version tag, expected v1.0.0 or v1.0.0-beta.2"
+          }
+          $declared = (Select-String -Path config.py -Pattern '^version = "(.+)"$').Matches[0].Groups[1].Value
+          if ($declared -ne $tag) {
+            throw "config.py version '$declared' does not match tag '$tag'"
+          }
 
       - name: Test combo axis
         run: |
@@ -61,17 +74,20 @@ jobs:
             $archive.Dispose()
           }
 
-      - name: Publish Pre-release
+      - name: Publish release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" `
-            "pyappify_dist\wuwa-win32-online-setup.exe" `
-            "pyappify_dist\wuwa-win32.zip" `
-            "pyappify_dist\win32_sha256.txt" `
-            --repo "${{ github.repository }}" `
-            --title "Wuwa Pilot ${{ github.ref_name }}" `
-            --notes-file ".github\RELEASE.md" `
-            --prerelease `
-            --verify-tag
+          $tag = "${{ github.ref_name }}"
+          $releaseArgs = @(
+            "pyappify_dist\wuwa-win32-online-setup.exe",
+            "pyappify_dist\wuwa-win32.zip",
+            "pyappify_dist\win32_sha256.txt",
+            "--repo", "${{ github.repository }}",
+            "--title", "Wuwa Pilot $tag",
+            "--notes-file", ".github\RELEASE.md",
+            "--verify-tag"
+          )
+          if ($tag -match '-(alpha|beta|rc)') { $releaseArgs += "--prerelease" }
+          gh release create $tag @releaseArgs

@@ -2,7 +2,7 @@
   <h1>Wuwa Pilot</h1>
   <p>基于 OK-WW 的《鸣潮》图像识别自动化工具，增加 WWCOMBO 社区连段轴导入、预览与执行。</p>
 
-  [![版本](https://img.shields.io/badge/version-beta1.1-orange)](https://github.com/etg227/wuwa_pilot/releases)
+  [![版本](https://img.shields.io/badge/version-v1.0.0--beta.2-orange)](https://github.com/etg227/wuwa_pilot/releases)
   [![平台](https://img.shields.io/badge/platform-Windows-blue)](#运行要求)
   [![许可证](https://img.shields.io/badge/license-AGPL--3.0-green)](LICENSE.txt)
 </div>
@@ -14,12 +14,14 @@
 
 前往 [GitHub Releases](https://github.com/etg227/wuwa_pilot/releases) 下载 Pre-release。
 
-- 当前测试版：`beta1.1`
+- 当前测试版：`v1.0.0-beta.2`
 - Windows 用户优先下载名称包含 `online-setup.exe` 的在线安装包。
 - 不熟悉源码运行的用户不要下载 GitHub 自动生成的 `Source code` 压缩包。
 - 测试版没有商业代码签名，Windows 可能显示未知发布者提示；请只从本仓库下载。
 
-版本按 `beta1.0`、`beta1.1`、`beta1.2` 依次迭代，不移动或覆盖已经发布的版本 tag；稳定后再发布 `v1.0.0`。
+版本 tag 必须写成 `v主.次.补丁` 或 `v主.次.补丁-beta.N`，例如 `v1.0.0-beta.2`、`v1.0.0`。安装器只认这种格式：早期的 `beta1.0`、`beta1.1` 不符合，安装器无法把它们识别成版本，只能停在默认分支上，也收不到自动更新，因此这套写法已经停用。
+
+测试版按 `v1.0.0-beta.2`、`v1.0.0-beta.3` 依次迭代，稳定后发布 `v1.0.0`；不移动或覆盖已经发布的 tag。`config.py` 里的 `version` 必须和 tag 一致，发布流程会在打包前校验。
 
 ## WWCOMBO 连段轴
 
