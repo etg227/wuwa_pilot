@@ -27,16 +27,39 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: 验证连段轴核心逻辑
-        run: python -m unittest tests.TestAxisChart tests.TestAxisRunner -v
+      - name: 验证连段轴
+        run: |
+          python -m unittest tests.TestAxisChart tests.TestAxisRunner -v
+          python -m compileall -q src/axis src/gui/AxisControlTab.py src/task/AxisPlaybackTask.py
 
       - name: 构建 Windows 安装包
         id: build-app
-        uses: ok-oldking/pyappify-action@master
-        continue-on-error: true
+        uses: ok-oldking/pyappify-action@91cb0dfeb63d297bc260f2d7efc1a16304fba724
+        with:
+          version: 'v1.1.14'
+
+      - name: 检查构建产物
+        shell: pwsh
+        run: |
+          $setup = @(Get-ChildItem "pyappify_dist\*-online-setup.exe" -ErrorAction SilentlyContinue)
+          $zip = @(Get-ChildItem "pyappify_dist\*.zip" -ErrorAction SilentlyContinue)
+          $hash = @(Get-ChildItem "pyappify_dist\*_sha256.txt" -ErrorAction SilentlyContinue)
+
+          if ($setup.Count -lt 1) { throw "没有生成在线安装包" }
+          if ($zip.Count -lt 1) { throw "没有生成便携包" }
+          if ($hash.Count -lt 1) { throw "没有生成 SHA256 文件" }
+          if ($setup[0].Length -lt 1MB) { throw "安装包大小异常" }
+          if ($zip[0].Length -lt 1MB) { throw "便携包大小异常" }
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip[0].FullName)
+          try {
+            if ($archive.Entries.Count -eq 0) { throw "便携包内容为空" }
+          } finally {
+            $archive.Dispose()
+          }
 
       - name: 发布 GitHub 预发行版
-        if: always()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'beta1.0' }}
