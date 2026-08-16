@@ -4,8 +4,9 @@ from PySide6.QtCore import QObject, Signal
 
 from src.axis.AxisChart import AxisChart, OutputBinding
 from src.axis.AxisRunner import AxisEvent, AxisOutput, AxisRunner, build_axis_events
+from src.axis.CombatMonitor import CombatMonitor
 from src.axis.VisualSync import wait_for_switch_sync
-from src.task.BaseWWTask import BaseWWTask
+from src.combat.CombatCheck import CombatCheck
 
 
 class AxisPlaybackSignals(QObject):
@@ -41,7 +42,7 @@ class InteractionAxisOutput(AxisOutput):
             self.interaction.send_key_up(binding.code)
 
 
-class AxisPlaybackTask(BaseWWTask):
+class AxisPlaybackTask(CombatCheck):
     """由“椰果启动器”页面配置并加入统一任务队列的隐藏任务。"""
 
     def __init__(self, *args, **kwargs):
@@ -55,6 +56,9 @@ class AxisPlaybackTask(BaseWWTask):
         self._playback_settings = None
         self._visual_sync = False
         self._sync_timeout = 1.5
+        self._pause_on_target_loss = False
+        self._target_loss_max_wait = 30.0
+        self._target_loss_timeout_stop = False
         self._last_timing = None
 
     def configure_playback(
@@ -67,6 +71,9 @@ class AxisPlaybackTask(BaseWWTask):
         include_start_trigger: bool,
         visual_sync: bool = False,
         sync_timeout: float = 1.5,
+        pause_on_target_loss: bool = False,
+        target_loss_max_wait: float = 30.0,
+        target_loss_timeout_stop: bool = False,
     ) -> None:
         if self.running or self.enabled:
             raise RuntimeError("已有椰果启动器任务正在执行或等待执行")
@@ -77,6 +84,9 @@ class AxisPlaybackTask(BaseWWTask):
             self._playback_settings = (chart, events, float(speed), int(countdown))
             self._visual_sync = bool(visual_sync)
             self._sync_timeout = max(0.2, float(sync_timeout))
+            self._pause_on_target_loss = bool(pause_on_target_loss)
+            self._target_loss_max_wait = max(5.0, float(target_loss_max_wait))
+            self._target_loss_timeout_stop = bool(target_loss_timeout_stop)
         self._stop_event.clear()
         self._last_timing = None
 
@@ -104,18 +114,35 @@ class AxisPlaybackTask(BaseWWTask):
             if interaction is None:
                 raise RuntimeError("游戏输入设备尚未连接")
             interaction.on_run()
+            monitor = None
+            if self._pause_on_target_loss:
+                monitor = CombatMonitor(
+                    self.next_frame,
+                    self.has_target,
+                    lambda: bool(self.target_enemy(wait=True)),
+                    self._stop_event,
+                    max_wait_s=self._target_loss_max_wait,
+                    stop_on_timeout=self._target_loss_timeout_stop,
+                    status_callback=self.signals.status_changed.emit,
+                )
+                monitor.start()
             self.signals.status_changed.emit(f"正在执行：{chart.title}")
             runner = AxisRunner()
-            cancelled = runner.run(
-                events,
-                InteractionAxisOutput(interaction),
-                self._stop_event,
-                speed=speed,
-                action_callback=self._on_action,
-                progress_callback=lambda value: self.signals.progress_changed.emit(round(value)),
-                sync_callback=self._sync_after_switch if self._visual_sync else None,
-                timing_callback=self._on_timing,
-            )
+            try:
+                cancelled = runner.run(
+                    events,
+                    InteractionAxisOutput(interaction),
+                    self._stop_event,
+                    speed=speed,
+                    action_callback=self._on_action,
+                    progress_callback=lambda value: self.signals.progress_changed.emit(round(value)),
+                    sync_callback=self._sync_after_switch if self._visual_sync else None,
+                    timing_callback=self._on_timing,
+                    gate_callback=monitor.allow if monitor else None,
+                )
+            finally:
+                if monitor is not None:
+                    monitor.stop()
             message = "已停止并释放全部按键" if cancelled else "椰果启动器执行完成"
             if self._last_timing is not None:
                 _, average_ms, max_ms = self._last_timing

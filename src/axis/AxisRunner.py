@@ -108,6 +108,7 @@ class AxisRunner:
         progress_callback: Callable[[float], None] | None = None,
         sync_callback: Callable[[AxisEvent], bool] | None = None,
         timing_callback: Callable[[AxisEvent, float, float, float], None] | None = None,
+        gate_callback: Callable[[AxisEvent], bool] | None = None,
     ) -> bool:
         if speed <= 0:
             raise ValueError("播放速度必须大于 0")
@@ -123,6 +124,18 @@ class AxisRunner:
         cancelled = False
         try:
             for event in events:
+                if gate_callback and not gate_callback(event):
+                    # 闸门关闭（例如转火空档）：先释放长按，暂停到闸门重新放行，
+                    # 等待时间计入时间轴偏移，后续动作不会集中补发。
+                    gate_started = self.clock()
+                    self._release_all(output, held)
+                    while not gate_callback(event):
+                        if stop_event.wait(0.05):
+                            cancelled = True
+                            break
+                    if cancelled:
+                        break
+                    timeline_shift += self.clock() - gate_started
                 target = start + event.at_ms / 1000 / speed + timeline_shift
                 remaining = target - self.clock()
                 if remaining > 0 and stop_event.wait(remaining):
@@ -161,16 +174,20 @@ class AxisRunner:
                 if progress_callback:
                     progress_callback(100.0 if total_ms <= 0 else min(100.0, event.at_ms / total_ms * 100))
         finally:
-            for binding in reversed(tuple(held)):
-                try:
-                    output.release(binding)
-                except Exception:
-                    # 清理阶段不能因为一个键释放失败而漏掉其他键。
-                    continue
-            held.clear()
+            self._release_all(output, held)
         if progress_callback and not cancelled:
             progress_callback(100.0)
         return cancelled
+
+    @staticmethod
+    def _release_all(output: AxisOutput, held: dict[OutputBinding, int]) -> None:
+        for binding in reversed(tuple(held)):
+            try:
+                output.release(binding)
+            except Exception:
+                # 清理阶段不能因为一个键释放失败而漏掉其他键。
+                continue
+        held.clear()
 
     @staticmethod
     def _execute_event(event: AxisEvent, output: AxisOutput, held: dict[OutputBinding, int]) -> None:

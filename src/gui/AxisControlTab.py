@@ -55,6 +55,9 @@ class AxisControlTab(CustomTab):
                 "Start Trigger": True,
                 "Visual Sync": True,
                 "Sync Timeout": 1.5,
+                "Target Pause": False,
+                "Target Wait": 30,
+                "Target Timeout Stop": False,
                 "Move Mappings": {},
             },
         )
@@ -179,6 +182,24 @@ class AxisControlTab(CustomTab):
         self.sync_timeout_spin.setValue(float(self.settings.get("Sync Timeout", 1.5)))
         self.sync_timeout_spin.setSuffix(" 秒")
         options.addRow("同步超时", self.sync_timeout_spin)
+
+        self.target_pause_check = QCheckBox(
+            "boss 击杀/转火出现空档时暂停时间轴，重新锁定目标后继续", container
+        )
+        self.target_pause_check.setChecked(bool(self.settings.get("Target Pause", False)))
+        options.addRow("目标丢失暂停", self.target_pause_check)
+
+        self.target_wait_spin = QSpinBox(container)
+        self.target_wait_spin.setRange(5, 120)
+        self.target_wait_spin.setValue(int(self.settings.get("Target Wait", 30)))
+        self.target_wait_spin.setSuffix(" 秒")
+        options.addRow("新目标等待上限", self.target_wait_spin)
+
+        self.target_timeout_stop_check = QCheckBox(
+            "等待超时后停止播放；不勾选则超时后继续按时间轴执行", container
+        )
+        self.target_timeout_stop_check.setChecked(bool(self.settings.get("Target Timeout Stop", False)))
+        options.addRow("超时行为", self.target_timeout_stop_check)
         layout.addLayout(options)
 
         self.current_input_label = QLabel("当前按键：无", container)
@@ -359,6 +380,9 @@ class AxisControlTab(CustomTab):
                 self.start_trigger_check.isChecked(),
                 self.visual_sync_check.isChecked(),
                 self.sync_timeout_spin.value(),
+                self.target_pause_check.isChecked(),
+                self.target_wait_spin.value(),
+                self.target_timeout_stop_check.isChecked(),
             )
             task.start()
         except Exception as error:
@@ -411,6 +435,9 @@ class AxisControlTab(CustomTab):
         self.settings["Start Trigger"] = self.start_trigger_check.isChecked()
         self.settings["Visual Sync"] = self.visual_sync_check.isChecked()
         self.settings["Sync Timeout"] = self.sync_timeout_spin.value()
+        self.settings["Target Pause"] = self.target_pause_check.isChecked()
+        self.settings["Target Wait"] = self.target_wait_spin.value()
+        self.settings["Target Timeout Stop"] = self.target_timeout_stop_check.isChecked()
 
     def _show_error(self, message: str) -> None:
         show_info_bar(self.window(), message, title="错误", error=True)

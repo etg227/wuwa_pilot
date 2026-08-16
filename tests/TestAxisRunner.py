@@ -133,6 +133,71 @@ class TestAxisRunner(unittest.TestCase):
         self.assertAlmostEqual(output.actions[0][1], 10.0)
         self.assertAlmostEqual(output.actions[1][1], 10.6)
 
+    def test_gate_hold_releases_keys_and_shifts_timeline(self):
+        now = [0.0]
+
+        class AdvancingStopEvent:
+            @staticmethod
+            def wait(seconds):
+                now[0] += seconds
+                return False
+
+            @staticmethod
+            def is_set():
+                return False
+
+        hold = OutputBinding("key", "lshift", "hold")
+        tap = OutputBinding("key", "e")
+        events = (
+            AxisEvent(0, 1, 0, "down", hold, 0, "长按", "dodge_hold"),
+            AxisEvent(200, 2, 1, "tap", tap, 1, "技能", "skill"),
+            AxisEvent(400, 0, 2, "up", hold, 0, "长按", "dodge_hold"),
+        )
+        gate_checks = []
+
+        def gate(event):
+            gate_checks.append(event.move_id)
+            # 技能事件前模拟目标丢失：拦住三次后放行。
+            return not (event.move_id == "skill" and gate_checks.count("skill") <= 3)
+
+        class TimedOutput(FakeOutput):
+            def tap(self, binding):
+                self.actions.append(("tap", now[0]))
+
+        output = TimedOutput()
+        cancelled = AxisRunner(clock=lambda: now[0]).run(
+            events, output, AdvancingStopEvent(), gate_callback=gate
+        )
+
+        self.assertFalse(cancelled)
+        # 闸门关闭时先释放长按；后续 up 事件不会重复释放。
+        self.assertEqual(output.actions[0], ("down", "lshift:hold"))
+        self.assertEqual(output.actions[1], ("up", "lshift:hold"))
+        self.assertEqual(len(output.actions), 3)
+        # 两次 0.05 秒的闸门等待计入时间轴偏移：0.2 + 0.1 = 0.3。
+        self.assertAlmostEqual(output.actions[2][1], 0.3)
+
+    def test_stop_while_gated_is_cancelled_and_keys_released(self):
+        stop_event = threading.Event()
+        hold = OutputBinding("key", "lshift", "hold")
+        tap = OutputBinding("key", "e")
+        events = (
+            AxisEvent(0, 1, 0, "down", hold, 0, "长按", "dodge_hold"),
+            AxisEvent(1, 2, 1, "tap", tap, 1, "技能", "skill"),
+        )
+
+        def gate(event):
+            if event.move_id == "skill":
+                stop_event.set()
+                return False
+            return True
+
+        output = FakeOutput()
+        cancelled = AxisRunner().run(events, output, stop_event, speed=100, gate_callback=gate)
+
+        self.assertTrue(cancelled)
+        self.assertEqual(output.actions, [("down", "lshift:hold"), ("up", "lshift:hold")])
+
     def test_stop_during_last_sync_is_reported_as_cancelled(self):
         stop_event = threading.Event()
         binding = OutputBinding("key", "2")
