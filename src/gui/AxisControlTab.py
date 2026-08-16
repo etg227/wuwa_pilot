@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QPlainTextEdit,
     QProgressBar,
     QSpinBox,
     QTableWidgetItem,
@@ -31,6 +32,7 @@ from src.axis import (
     parse_output_binding,
 )
 from src.axis.InputMonitor import InputMonitor
+from src.axis.TextAxis import parse_text_axis
 from src.task.AxisPlaybackTask import AxisPlaybackTask
 
 
@@ -59,6 +61,11 @@ class AxisControlTab(CustomTab):
                 "Target Wait": 30,
                 "Target Timeout Stop": False,
                 "Pause Auto Combat After": False,
+                "Sequence Mode": True,
+                "Basic Interval": 450,
+                "Loop Playback": False,
+                "Loop Start": 1,
+                "Text Axis": "",
                 "Move Mappings": {},
             },
         )
@@ -115,6 +122,48 @@ class AxisControlTab(CustomTab):
         self.chart_summary = BodyLabel("尚未导入椰果启动器轴")
         layout.addWidget(self.chart_summary)
         self.add_card("椰果启动器来源", container)
+        self._build_text_axis_area()
+
+    def _build_text_axis_area(self) -> None:
+        container = QWidget(self.view)
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(
+            BodyLabel(
+                "直接输入动作序列，用推进模式执行。语法：1/2/3=切人，a=普攻（a3=三次），"
+                "e=共鸣技能，q=声骸，r=共鸣解放，d=闪避，j=跳跃，h=重击（h1.2=长按1.2秒），"
+                "f=处决/交互，w0.5=等待0.5秒，“循环”=之后的步骤循环播放，#=注释。"
+            )
+        )
+        self.text_axis_edit = QPlainTextEdit(container)
+        self.text_axis_edit.setPlaceholderText("示例：\n1 a3 e\n2 e r q\n循环\n3 a e\n1 a2 e r")
+        self.text_axis_edit.setPlainText(str(self.settings.get("Text Axis", "")))
+        self.text_axis_edit.setMinimumHeight(120)
+        layout.addWidget(self.text_axis_edit)
+        row = QHBoxLayout()
+        row.addStretch(1)
+        self.text_axis_button = PrimaryPushButton("解析并载入文字轴", container)
+        self.text_axis_button.clicked.connect(self._import_text_axis)
+        row.addWidget(self.text_axis_button)
+        layout.addLayout(row)
+        self.add_card("文字轴", container)
+
+    def _import_text_axis(self) -> None:
+        text = self.text_axis_edit.toPlainText()
+        try:
+            chart, loop_start = parse_text_axis(text)
+        except AxisFormatError as error:
+            self._show_error(str(error))
+            return
+        self.settings["Text Axis"] = text
+        self._load_chart(chart, "文字轴")
+        self.sequence_mode_check.setChecked(True)
+        if loop_start is not None:
+            self.loop_check.setChecked(True)
+            self.loop_start_spin.setValue(loop_start + 1)
+            self.status_label.setText(
+                f"文字轴已载入：循环从第 {loop_start + 1} 步开始，播放到战斗结束"
+            )
 
     def _build_chart_area(self) -> None:
         container = QWidget(self.view)
@@ -135,7 +184,7 @@ class AxisControlTab(CustomTab):
         self.timeline_table.setColumnCount(5)
         self.timeline_table.setHorizontalHeaderLabels(["时间", "角色", "动作", "持续", "轨道"])
         self.timeline_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.timeline_table.verticalHeader().hide()
+        # 行号即“循环起点”的步序号，保持可见。
         self.timeline_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.timeline_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.timeline_table.setMinimumHeight(300)
@@ -166,6 +215,31 @@ class AxisControlTab(CustomTab):
         self.repeat_spin.setValue(int(self.settings.get("Repeat Interval", 110)))
         self.repeat_spin.setSuffix(" 毫秒")
         options.addRow("普攻连点间隔", self.repeat_spin)
+
+        self.sequence_mode_check = QCheckBox(
+            "推进模式：按顺序执行并确认切人，不按绝对时间戳；适合时间戳不准的轴和文字轴", container
+        )
+        self.sequence_mode_check.setChecked(bool(self.settings.get("Sequence Mode", True)))
+        options.addRow("播放模式", self.sequence_mode_check)
+
+        self.basic_interval_spin = QSpinBox(container)
+        self.basic_interval_spin.setRange(100, 2000)
+        self.basic_interval_spin.setValue(int(self.settings.get("Basic Interval", 450)))
+        self.basic_interval_spin.setSuffix(" 毫秒")
+        options.addRow("普攻出手间隔（推进模式）", self.basic_interval_spin)
+
+        self.loop_check = QCheckBox(
+            "从循环起点循环播放直到战斗结束；建议同时开启目标丢失暂停以自动判定结束", container
+        )
+        self.loop_check.setChecked(bool(self.settings.get("Loop Playback", False)))
+        options.addRow("循环播放（推进模式）", self.loop_check)
+
+        self.loop_start_spin = QSpinBox(container)
+        self.loop_start_spin.setRange(1, 5000)
+        self.loop_start_spin.setValue(int(self.settings.get("Loop Start", 1)))
+        self.loop_start_spin.setPrefix("第 ")
+        self.loop_start_spin.setSuffix(" 步")
+        options.addRow("循环起点（时间轴预览行号）", self.loop_start_spin)
 
         self.start_trigger_check = QCheckBox("播放开始时自动触发轴内的“开始”按键", container)
         self.start_trigger_check.setChecked(bool(self.settings.get("Start Trigger", True)))
@@ -403,6 +477,10 @@ class AxisControlTab(CustomTab):
                 self.target_wait_spin.value(),
                 self.target_timeout_stop_check.isChecked(),
                 self.auto_combat_pause_check.isChecked(),
+                self.sequence_mode_check.isChecked(),
+                self.basic_interval_spin.value(),
+                self.loop_check.isChecked(),
+                self.loop_start_spin.value(),
             )
             task.start()
         except Exception as error:
@@ -459,6 +537,10 @@ class AxisControlTab(CustomTab):
         self.settings["Target Wait"] = self.target_wait_spin.value()
         self.settings["Target Timeout Stop"] = self.target_timeout_stop_check.isChecked()
         self.settings["Pause Auto Combat After"] = self.auto_combat_pause_check.isChecked()
+        self.settings["Sequence Mode"] = self.sequence_mode_check.isChecked()
+        self.settings["Basic Interval"] = self.basic_interval_spin.value()
+        self.settings["Loop Playback"] = self.loop_check.isChecked()
+        self.settings["Loop Start"] = self.loop_start_spin.value()
 
     def _show_error(self, message: str) -> None:
         show_info_bar(self.window(), message, title="错误", error=True)

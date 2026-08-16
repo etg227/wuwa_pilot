@@ -80,6 +80,11 @@ class CombatMonitor:
         with self._lifecycle_lock:
             return self._thread is not None and self._thread.is_alive()
 
+    @property
+    def gave_up(self) -> bool:
+        """目标消失且等待超时；循环播放据此判定战斗结束。"""
+        return self._gave_up
+
     def allow(self, event) -> bool:
         """时间轴线程在执行每个事件前调用；False 表示暂停等待。"""
         suppress = self._suppress_after_move.get(event.move_id)

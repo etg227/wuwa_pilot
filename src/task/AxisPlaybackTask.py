@@ -5,6 +5,7 @@ from PySide6.QtCore import QObject, Signal
 from src.axis.AxisChart import AxisChart, OutputBinding
 from src.axis.AxisRunner import AxisEvent, AxisOutput, AxisRunner, build_axis_events
 from src.axis.CombatMonitor import CombatMonitor
+from src.axis.SequenceRunner import SequenceRunner, build_sequence_steps
 from src.axis.VisualSync import wait_for_switch_sync
 from src.combat.CombatCheck import CombatCheck
 
@@ -60,6 +61,11 @@ class AxisPlaybackTask(CombatCheck):
         self._target_loss_max_wait = 30.0
         self._target_loss_timeout_stop = False
         self._pause_auto_combat_after = False
+        self._sequence_mode = False
+        self._basic_interval_ms = 450
+        self._repeat_interval_ms = 110
+        self._loop_playback = False
+        self._loop_start_step = 1
         self._last_timing = None
 
     def configure_playback(
@@ -76,14 +82,27 @@ class AxisPlaybackTask(CombatCheck):
         target_loss_max_wait: float = 30.0,
         target_loss_timeout_stop: bool = False,
         pause_auto_combat_after: bool = False,
+        sequence_mode: bool = False,
+        basic_interval_ms: int = 450,
+        loop_playback: bool = False,
+        loop_start_step: int = 1,
     ) -> None:
         if self.running or self.enabled:
             raise RuntimeError("已有椰果启动器任务正在执行或等待执行")
         events = build_axis_events(chart, mappings, repeat_interval_ms, include_start_trigger)
-        if not events:
+        sequence_steps = build_sequence_steps(chart, mappings)
+        if sequence_mode:
+            if not sequence_steps:
+                raise ValueError("这个轴没有可推进执行的已识别动作")
+        elif not events:
             raise ValueError("这个轴没有可执行的已识别动作")
         with self._settings_lock:
-            self._playback_settings = (chart, events, float(speed), int(countdown))
+            self._playback_settings = (chart, events, sequence_steps, float(speed), int(countdown))
+            self._sequence_mode = bool(sequence_mode)
+            self._basic_interval_ms = min(2000, max(100, int(basic_interval_ms)))
+            self._repeat_interval_ms = int(repeat_interval_ms)
+            self._loop_playback = bool(loop_playback)
+            self._loop_start_step = max(1, int(loop_start_step))
             self._visual_sync = bool(visual_sync)
             self._sync_timeout = max(0.2, float(sync_timeout))
             self._pause_on_target_loss = bool(pause_on_target_loss)
@@ -104,7 +123,7 @@ class AxisPlaybackTask(CombatCheck):
             settings = self._playback_settings
         if settings is None:
             raise RuntimeError("尚未配置椰果启动器")
-        chart, events, speed, countdown = settings
+        chart, events, sequence_steps, speed, countdown = settings
 
         try:
             for remaining in range(countdown, 0, -1):
@@ -132,25 +151,45 @@ class AxisPlaybackTask(CombatCheck):
                     status_callback=self.signals.status_changed.emit,
                 )
                 monitor.start()
+            mode_text = "推进模式" if self._sequence_mode else "时间轴模式"
             title_suffix = "｜自动战斗已让位" if auto_combat_active else ""
-            self.signals.status_changed.emit(f"正在执行：{chart.title}{title_suffix}")
-            runner = AxisRunner()
+            self.signals.status_changed.emit(f"正在执行：{chart.title}｜{mode_text}{title_suffix}")
+            loops_done = 0
             try:
-                cancelled = runner.run(
-                    events,
-                    InteractionAxisOutput(interaction),
-                    self._stop_event,
-                    speed=speed,
-                    action_callback=self._on_action,
-                    progress_callback=lambda value: self.signals.progress_changed.emit(round(value)),
-                    sync_callback=self._sync_after_switch if self._visual_sync else None,
-                    timing_callback=self._on_timing,
-                    gate_callback=monitor.allow if monitor else None,
-                )
+                if self._sequence_mode:
+                    cancelled, loops_done = SequenceRunner().run(
+                        sequence_steps,
+                        InteractionAxisOutput(interaction),
+                        self._stop_event,
+                        basic_interval_ms=self._basic_interval_ms,
+                        repeat_interval_ms=self._repeat_interval_ms,
+                        loop=self._loop_playback,
+                        loop_start_step=self._loop_start_step - 1,
+                        should_continue_loop=(lambda: not monitor.gave_up) if monitor else None,
+                        gate_callback=monitor.allow if monitor else None,
+                        switch_confirm=self._sequence_switch_confirm if self._visual_sync else None,
+                        action_callback=self._on_action,
+                        progress_callback=lambda value: self.signals.progress_changed.emit(round(value)),
+                        status_callback=self.signals.status_changed.emit,
+                    )
+                else:
+                    cancelled = AxisRunner().run(
+                        events,
+                        InteractionAxisOutput(interaction),
+                        self._stop_event,
+                        speed=speed,
+                        action_callback=self._on_action,
+                        progress_callback=lambda value: self.signals.progress_changed.emit(round(value)),
+                        sync_callback=self._sync_after_switch if self._visual_sync else None,
+                        timing_callback=self._on_timing,
+                        gate_callback=monitor.allow if monitor else None,
+                    )
             finally:
                 if monitor is not None:
                     monitor.stop()
             message = "已停止并释放全部按键" if cancelled else "椰果启动器执行完成"
+            if self._sequence_mode and loops_done > 1:
+                message += f"｜共执行 {loops_done} 轮"
             if self._last_timing is not None:
                 _, average_ms, max_ms = self._last_timing
                 message += f"｜平均偏差 {average_ms:.1f} ms，最大 {max_ms:.1f} ms"
@@ -183,6 +222,16 @@ class AxisPlaybackTask(CombatCheck):
     def _on_timing(self, _event: AxisEvent, current_ms: float, average_ms: float, max_ms: float) -> None:
         self._last_timing = (current_ms, average_ms, max_ms)
         self.signals.timing_changed.emit(current_ms, average_ms, max_ms)
+
+    def _sequence_switch_confirm(self, step) -> bool:
+        expected_slot = int(step.move_id[-1]) - 1
+        return wait_for_switch_sync(
+            self.next_frame,
+            self.in_team,
+            expected_slot,
+            self._stop_event,
+            self._sync_timeout,
+        )
 
     def _sync_after_switch(self, event: AxisEvent) -> bool:
         if event.operation != "tap" or event.move_id not in {"switch_1", "switch_2", "switch_3"}:
