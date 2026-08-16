@@ -19,6 +19,21 @@ python -m pip install -r requirements-dev.txt
 .\run_tests.ps1
 ```
 
+运行关键错误检查（CI 也会执行，只查语法错误和未定义名称，不做风格检查）：
+
+```powershell
+ruff check .
+```
+
+## 依赖更新
+
+运行时依赖的直接来源维护在 `requirements.in`，`requirements.txt` 是由 pip-tools 生成的锁定文件。更新依赖时先修改 `requirements.in`，再重新生成锁定文件，不要手工编辑 `requirements.txt`：
+
+```powershell
+python -m pip install pip-tools
+python -m piptools compile requirements.in
+```
+
 ## 提交要求
 
 - 每个提交只处理一个清晰主题，不混入日志、缓存、截图或个人配置。
