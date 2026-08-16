@@ -81,11 +81,15 @@
 开发环境推荐 Python 3.12：
 
 ```powershell
+git lfs install
+git lfs pull
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python main.py
 ```
+
+仓库包含模型文件。若源码克隆后模型仍是 LFS 指针文本，程序将无法加载 ONNX 模型，请确认已安装 Git LFS 并执行 `git lfs pull`。
 
 启动调试模式：
 
