@@ -37,9 +37,7 @@ python -m piptools compile requirements.in
 
 CI 使用 coverage 生成覆盖率报告。覆盖率用于发现本次修改缺少的测试分支，暂不设置全项目百分比门槛，以免上游快照中的既有未覆盖代码阻塞维护。
 
-超过 25 MiB 的新文件必须由 Git LFS 管理。首次参与开发前需要安装 Git LFS，并在本机执行一次 `git lfs install`。CI 会运行 `python scripts/check_large_files.py`，同时检查 LFS 属性和 Git 索引里的实际对象；模型权重优先使用 `.onnx`、`.bin` 或 `.pth` 扩展名。
-
-`assets/echo_model/echo.onnx` 是尚未迁移的存量普通 Git blob，当前仅加入 LFS 属性并由检查器明确豁免。真正迁移前必须确认源码克隆、`deploy.txt` 同步更新仓库以及 Release 打包都能取回 LFS 内容。当前 Actions 检出均设置了 `lfs: true`，并且 `deploy.txt` 包含 `assets`；本地源码用户则必须安装 Git LFS 后再克隆或执行 `git lfs pull`。GitHub 免费 LFS 带宽有限，迁移约 38 MiB 的模型前还需要评估下载次数和月度流量，不能只修改指针文件就发布。
+本仓库不使用 Git LFS：LFS 免费带宽配额按所有人的克隆下载计费，对社区分发的仓库是长期负担。CI 会运行 `python scripts/check_large_files.py`，拒绝超过 25 MiB 的新文件进入 Git 仓库；`assets/echo_model/echo.onnx` 是唯一的存量豁免，不要继续增加。需要分发新的大文件（例如模型权重）时，放入 GitHub Release 资产或更新仓库，由程序在首次使用时下载并校验。
 
 ## 发布验收
 

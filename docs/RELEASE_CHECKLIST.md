@@ -6,7 +6,6 @@
 - Ruff 关键错误检查通过。
 - CI 生成覆盖率报告，检查本次修改涉及的分支是否被覆盖。
 - 打包任务只找到一个 `*-online-setup.exe`，Release 只上传该启动器。
-- `assets/echo_model/echo.onnx` 真正迁移到 LFS 后，验证源码克隆、更新仓库同步和打包任务取得的是模型内容而不是 LFS 指针。
 - GitHub Release 页面显示的资产摘要与本地下载文件一致。
 
 ## 实机验收
