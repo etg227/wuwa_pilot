@@ -5,7 +5,12 @@ from PySide6.QtCore import QObject, Signal
 from src.axis.AxisChart import AxisChart, OutputBinding
 from src.axis.AxisRunner import AxisEvent, AxisOutput, AxisRunner, build_axis_events
 from src.axis.CombatMonitor import CombatMonitor
-from src.axis.SequenceRunner import UNTIL_STATES, SequenceRunner, build_sequence_steps
+from src.axis.SequenceRunner import (
+    CONFIRM_TAP_STATES,
+    UNTIL_STATES,
+    SequenceRunner,
+    build_sequence_steps,
+)
 from src.axis.VisualSync import verify_switch_async, wait_for_switch_sync
 from src.task.BaseCombatTask import BaseCombatTask
 
@@ -154,7 +159,8 @@ class AxisPlaybackTask(BaseCombatTask):
                 )
                 monitor.start()
             if self._sequence_mode and any(
-                step.move_id in UNTIL_STATES for step in sequence_steps
+                step.move_id in UNTIL_STATES or step.move_id in CONFIRM_TAP_STATES
+                for step in sequence_steps
             ):
                 # E 高亮检测需要角色对象；识别失败则条件步按超时推进，不阻塞播放。
                 try:
@@ -235,27 +241,29 @@ class AxisPlaybackTask(BaseCombatTask):
         self._last_timing = (current_ms, average_ms, max_ms)
         self.signals.timing_changed.emit(current_ms, average_ms, max_ms)
 
-    def _check_axis_state(self, name: str) -> bool:
-        """条件步的视觉检测；任何异常都返回 False，让条件步按超时推进。"""
+    def _check_axis_state(self, name: str):
+        """条件步的视觉检测，三态：True/False 为可信结论，None 为检测失败。
+
+        补按只在明确 False 时发生，None 保持宏时序不动作。
+        """
         try:
             self.next_frame()
             if name == "f_break":
                 return bool(self.check_f_break())
+            char = self.get_current_char(raise_exception=False)
+            if char is None:
+                return None
             if name == "resonance_ready":
-                char = self.get_current_char(raise_exception=False)
-                return bool(char is not None and char.resonance_available())
+                return bool(char.resonance_available())
             if name == "resonance_cd":
-                char = self.get_current_char(raise_exception=False)
-                return bool(char is not None and char.has_cd("resonance"))
+                return bool(char.has_cd("resonance"))
             if name == "liberation_cd":
-                char = self.get_current_char(raise_exception=False)
-                return bool(char is not None and char.has_cd("liberation"))
+                return bool(char.has_cd("liberation"))
             if name == "echo_cd":
-                char = self.get_current_char(raise_exception=False)
-                return bool(char is not None and char.has_cd("echo"))
+                return bool(char.has_cd("echo"))
         except Exception:
-            return False
-        return False
+            return None
+        return None
 
     def _on_sequence_switch(self, step) -> None:
         """切人后不阻塞衔接：后台校验槽位，确认失败补按一次。"""
@@ -266,7 +274,16 @@ class AxisPlaybackTask(BaseCombatTask):
             interaction = self.executor.interaction
             if interaction is None or self._stop_event.is_set():
                 return
-            self.signals.status_changed.emit(f"切人 {expected_slot + 1} 未确认，已补按")
+            # 只有明确看到停在其它槽位才补按；识别不可靠时保持宏时序不干预，
+            # 避免盲目多按一次切人键把整条轴切乱。
+            try:
+                self.next_frame()
+                is_in_team, current_slot, _ = self.in_team()
+            except Exception:
+                return
+            if not is_in_team or current_slot is None or current_slot == expected_slot:
+                return
+            self.signals.status_changed.emit(f"切人 {expected_slot + 1} 未成功，已补按")
             if binding.kind == "mouse":
                 interaction.click(-1, -1, move=False, down_time=0.015, key=binding.code)
             else:

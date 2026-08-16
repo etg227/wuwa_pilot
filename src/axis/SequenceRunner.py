@@ -26,6 +26,15 @@ UNTIL_STATES = {
     "macro_r_until_cd": "liberation_cd",
     "macro_q_until_cd": "echo_cd",
 }
+# 确认式轻触：按一次后在宏的等待窗口内部复查一次，明确未放出才补按一次。
+# 确认不占用额外时间，检测失败（None）不补按；E 不在此列——
+# 多充能技能的“无 CD”无法与“没放出”区分，盲目补按会多放一段。
+CONFIRM_TAP_STATES = {
+    "macro_r": "liberation_cd",
+    "macro_q": "echo_cd",
+}
+# 补按复查点：等待开始后多久做检测（秒）。
+CONFIRM_RECHECK_S = 0.7
 
 
 @dataclass(frozen=True)
@@ -180,7 +189,7 @@ class SequenceRunner:
             deadline = self.clock() + max(step.duration_ms, 1000) / 1000 * time_scale
             while True:
                 output.tap(binding)
-                if check_state is not None and check_state(state_name):
+                if check_state is not None and check_state(state_name) is True:
                     break
                 remaining = deadline - self.clock()
                 if remaining <= 0:
@@ -189,6 +198,20 @@ class SequenceRunner:
                     return False
             rest_ms = max(step.gap_ms - step.duration_ms, DEFAULT_MIN_GAP_MS)
             return not stop_event.wait(rest_ms / 1000 * time_scale)
+
+        if step.move_id in CONFIRM_TAP_STATES and check_state is not None:
+            # 确认式轻触：总时长严格等于宏时间；确认只发生在等待窗口内部。
+            output.tap(binding)
+            deadline = self.clock() + self._after_wait_s(step, basic_interval_ms) * time_scale
+            first_wait = min(CONFIRM_RECHECK_S * time_scale, max(deadline - self.clock(), 0.0))
+            if first_wait > 0 and stop_event.wait(first_wait):
+                return False
+            if self.clock() < deadline:
+                # 只有明确“未放出”（False）才补按；检测失败（None）不动。
+                if check_state(CONFIRM_TAP_STATES[step.move_id]) is False:
+                    output.tap(binding)
+            remaining = max(deadline - self.clock(), 0.0)
+            return not (remaining > 0 and stop_event.wait(remaining))
 
         if binding.mode == "hold":
             output.press(binding)

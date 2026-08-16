@@ -12,29 +12,29 @@ class TestRotations(unittest.TestCase):
         self.assertEqual(AXIS.chart.steps[1].move_id, "switch_2")
         # 循环从启动轴之后的第一步开始。
         self.assertEqual(AXIS.loop_start, len(OPENER))
-        self.assertEqual(AXIS.chart.steps[AXIS.loop_start].move_id, "macro_e_until_cd")
+        self.assertEqual(AXIS.chart.steps[AXIS.loop_start].move_id, "macro_e")
 
     def test_opener_ends_with_e_until_cd_bridge(self):
         opener_steps = AXIS.chart.steps[: AXIS.loop_start]
         self.assertEqual(opener_steps[-1].move_id, "macro_e_until_cd")
-        self.assertEqual(opener_steps[-1].duration_ms, 8000.0)
+        self.assertEqual(opener_steps[-1].duration_ms, 4000.0)
 
     def test_loop_contains_jump_and_finisher_sequence(self):
         loop_steps = AXIS.chart.steps[AXIS.loop_start:]
         move_ids = [step.move_id for step in loop_steps]
         self.assertIn("macro_space", move_ids)
         self.assertEqual(AXIS.mappings["macro_space"].config_text, "space")
-        # 循环末尾的衔接：R、E、条件处决、普攻至 E 高亮、E、重击、开大，全部确认式。
+        # 循环末尾的衔接：R、E、条件处决、普攻至 E 高亮、E、重击、开大。
         self.assertEqual(
             move_ids[-7:],
             [
-                "macro_r_until_cd",
-                "macro_e_until_cd",
+                "macro_r",
+                "macro_e",
                 "macro_f_break",
                 "macro_attack_until_e",
-                "macro_e_until_cd",
+                "macro_e",
                 "macro_heavy",
-                "macro_r_until_cd",
+                "macro_r",
             ],
         )
 
@@ -62,13 +62,9 @@ class TestRotations(unittest.TestCase):
         steps = build_sequence_steps(AXIS.chart, AXIS.mappings)
 
         self.assertEqual(len(steps), len(OPENER) + len(LOOP))
-        # 确认式 R 的动画等待（gap - 预算）必须保留宏原值。
-        liberation_waits = [
-            step.gap_ms - step.duration_ms
-            for step in steps
-            if step.move_id == "macro_r_until_cd"
-        ]
-        self.assertIn(4500.0, liberation_waits)
+        # R 大招后的动画等待必须保留宏原值（按住 50 + 等待 4500）。
+        liberation_gaps = [step.gap_ms for step in steps if step.move_id == "macro_r"]
+        self.assertIn(4550.0, liberation_gaps)
 
     def test_loop_start_points_to_loop_section(self):
         opener = (("a", 50, 100), ("e", 50, 200))

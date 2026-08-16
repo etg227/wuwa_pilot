@@ -238,6 +238,32 @@ class TestSequenceRunner(unittest.TestCase):
         self.assertGreaterEqual(len(output.actions), 2)
         self.assertLessEqual(now[0], 1.5)
 
+    def test_confirm_tap_keeps_macro_duration_and_represses_on_definite_miss(self):
+        now = [0.0]
+        binding = OutputBinding("key", "r")
+        steps = (make_step("macro_r", binding, gap_ms=3000.0),)
+
+        class CountingOutput(FakeOutput):
+            def tap(self, _binding):
+                self.actions.append(("tap", now[0]))
+
+        # 明确未放出（False）：补按一次，总时长仍等于宏时间。
+        missed = CountingOutput()
+        SequenceRunner(clock=lambda: now[0]).run(
+            steps, missed, AdvancingStopEvent(now), check_state=lambda name: False
+        )
+        self.assertEqual(len(missed.actions), 2)
+        self.assertAlmostEqual(now[0], 3.0)
+
+        # 检测失败（None）：不补按，总时长同样不变。
+        now[0] = 0.0
+        unknown = CountingOutput()
+        SequenceRunner(clock=lambda: now[0]).run(
+            steps, unknown, AdvancingStopEvent(now), check_state=lambda name: None
+        )
+        self.assertEqual(len(unknown.actions), 1)
+        self.assertAlmostEqual(now[0], 3.0)
+
     def test_loop_requires_battle_end_callback(self):
         steps = (make_step("skill", OutputBinding("key", "e")),)
 
