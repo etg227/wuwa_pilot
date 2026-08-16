@@ -167,8 +167,39 @@ class TestSequenceRunner(unittest.TestCase):
         )
 
         self.assertFalse(cancelled)
-        # 连点映射的单次普攻步也必须遵守出手间隔，不能 60 毫秒连发。
+        self.assertEqual(len(output.actions), 2)
+        # 每个 a 只触发一次普攻，并遵守配置的出手间隔。
         self.assertGreaterEqual(output.actions[-1][1] - output.actions[0][1], 0.35)
+
+    def test_speed_multiplier_scales_sequence_waits(self):
+        now = [0.0]
+        binding = OutputBinding("key", "e")
+        steps = (make_step("skill", binding, gap_ms=1000.0),)
+
+        SequenceRunner(clock=lambda: now[0]).run(
+            steps, FakeOutput(), AdvancingStopEvent(now), speed=2.0
+        )
+
+        self.assertAlmostEqual(now[0], 0.5)
+
+    def test_loop_requires_battle_end_callback(self):
+        steps = (make_step("skill", OutputBinding("key", "e")),)
+
+        with self.assertRaisesRegex(ValueError, "目标丢失暂停"):
+            SequenceRunner().run(steps, FakeOutput(), threading.Event(), loop=True)
+
+    def test_loop_start_must_be_inside_sequence(self):
+        steps = (make_step("skill", OutputBinding("key", "e"), step_index=0),)
+
+        with self.assertRaisesRegex(ValueError, "循环起点"):
+            SequenceRunner().run(
+                steps,
+                FakeOutput(),
+                threading.Event(),
+                loop=True,
+                loop_start_step=5,
+                should_continue_loop=lambda: True,
+            )
 
 
 if __name__ == "__main__":

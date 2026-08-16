@@ -41,6 +41,9 @@ def build_sequence_steps(
         binding = mappings.get(step.move_id)
         if binding is None and not chart.is_noop_move(step.move_id):
             continue
+        if step.move_id == "basic_attack" and binding is not None and binding.mode == "repeat":
+            # 推进模式的一步就是一次普攻；repeat 只属于绝对时间轴的区间连点语义。
+            binding = OutputBinding(binding.kind, binding.code)
         playable.append((index, step, binding))
     result = []
     for pos, (index, step, binding) in enumerate(playable):
@@ -72,6 +75,7 @@ class SequenceRunner:
         *,
         basic_interval_ms: int = 450,
         repeat_interval_ms: int = 110,
+        speed: float = 1.0,
         loop: bool = False,
         loop_start_step: int = 0,
         should_continue_loop: Callable[[], bool] | None = None,
@@ -84,14 +88,22 @@ class SequenceRunner:
     ) -> tuple[bool, int]:
         if basic_interval_ms < 100 or basic_interval_ms > 2000:
             raise ValueError("普攻出手间隔必须在 100～2000 毫秒之间")
+        if speed <= 0:
+            raise ValueError("播放速度必须大于 0")
+        if loop and should_continue_loop is None:
+            raise ValueError("循环播放必须开启目标丢失暂停，用于判断战斗结束")
         if not steps:
             raise ValueError("推进模式没有可执行的步骤")
 
-        entry = 0
+        entry = None
         for pos, step in enumerate(steps):
             if step.step_index >= loop_start_step:
                 entry = pos
                 break
+        if loop and entry is None:
+            raise ValueError("循环起点超出轴步骤范围")
+        if entry is None:
+            entry = 0
 
         cancelled = False
         loops_done = 0
@@ -122,7 +134,7 @@ class SequenceRunner:
             if action_callback:
                 action_callback(step)
             if not self._execute_step(
-                step, output, stop_event, basic_interval_ms, repeat_interval_ms, switch_confirm
+                step, output, stop_event, basic_interval_ms, repeat_interval_ms, speed, switch_confirm
             ):
                 cancelled = True
                 break
@@ -132,35 +144,36 @@ class SequenceRunner:
         return cancelled, loops_done
 
     def _execute_step(
-        self, step, output, stop_event, basic_interval_ms, repeat_interval_ms, switch_confirm
+        self, step, output, stop_event, basic_interval_ms, repeat_interval_ms, speed, switch_confirm
     ) -> bool:
+        time_scale = 1.0 / speed
         binding = step.binding
         if binding is None:
             # 空招式：只占位等待。
-            return not stop_event.wait(max(step.duration_ms, 0.0) / 1000)
+            return not stop_event.wait(max(step.duration_ms, 0.0) / 1000 * time_scale)
 
         if binding.mode == "hold":
             output.press(binding)
             try:
-                if stop_event.wait(max(step.duration_ms, 40) / 1000):
+                if stop_event.wait(max(step.duration_ms, 40) / 1000 * time_scale):
                     return False
             finally:
                 output.release(binding)
             return not stop_event.wait(
-                self._after_wait_s(step, basic_interval_ms, consumed_ms=step.duration_ms)
+                self._after_wait_s(step, basic_interval_ms, consumed_ms=step.duration_ms) * time_scale
             )
 
         if binding.mode == "repeat":
-            end = self.clock() + max(step.duration_ms, 1) / 1000
+            end = self.clock() + max(step.duration_ms, 1) / 1000 * time_scale
             while True:
                 output.tap(binding)
                 remaining = end - self.clock()
                 if remaining <= 0:
                     break
-                if stop_event.wait(min(repeat_interval_ms / 1000, remaining)):
+                if stop_event.wait(min(repeat_interval_ms / 1000 * time_scale, remaining)):
                     return False
             return not stop_event.wait(
-                self._after_wait_s(step, basic_interval_ms, consumed_ms=step.duration_ms)
+                self._after_wait_s(step, basic_interval_ms, consumed_ms=step.duration_ms) * time_scale
             )
 
         output.tap(binding)
@@ -171,9 +184,9 @@ class SequenceRunner:
                 switch_confirm(step)
             if stop_event.is_set():
                 return False
-            return not stop_event.wait(DEFAULT_MIN_GAP_MS / 1000)
+            return not stop_event.wait(DEFAULT_MIN_GAP_MS / 1000 * time_scale)
 
-        return not stop_event.wait(self._after_wait_s(step, basic_interval_ms))
+        return not stop_event.wait(self._after_wait_s(step, basic_interval_ms) * time_scale)
 
     @staticmethod
     def _after_wait_s(step, basic_interval_ms: int, consumed_ms: float = 0.0) -> float:

@@ -94,6 +94,8 @@ class AxisPlaybackTask(CombatCheck):
         if sequence_mode:
             if not sequence_steps:
                 raise ValueError("这个轴没有可推进执行的已识别动作")
+            if loop_playback and not pause_on_target_loss:
+                raise ValueError("循环播放必须开启目标丢失暂停，用于判断战斗结束")
         elif not events:
             raise ValueError("这个轴没有可执行的已识别动作")
         with self._settings_lock:
@@ -163,6 +165,7 @@ class AxisPlaybackTask(CombatCheck):
                         self._stop_event,
                         basic_interval_ms=self._basic_interval_ms,
                         repeat_interval_ms=self._repeat_interval_ms,
+                        speed=speed,
                         loop=self._loop_playback,
                         loop_start_step=self._loop_start_step - 1,
                         should_continue_loop=(lambda: not monitor.gave_up) if monitor else None,
