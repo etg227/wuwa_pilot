@@ -188,6 +188,56 @@ class TestSequenceRunner(unittest.TestCase):
 
         self.assertAlmostEqual(now[0], 0.5)
 
+    def test_conditional_f_break_presses_only_when_state_present(self):
+        binding = OutputBinding("key", "f")
+        steps = (make_step("macro_f_break", binding, gap_ms=1.0),)
+
+        skipped = FakeOutput()
+        SequenceRunner().run(
+            steps, skipped, threading.Event(), check_state=lambda name: False
+        )
+        pressed = FakeOutput()
+        SequenceRunner().run(
+            steps, pressed, threading.Event(), check_state=lambda name: name == "f_break"
+        )
+
+        self.assertEqual(skipped.actions, [])
+        self.assertEqual(pressed.actions, [("tap", "f")])
+
+    def test_attack_until_e_stops_when_state_becomes_ready(self):
+        now = [0.0]
+        binding = OutputBinding("mouse", "left")
+        steps = (make_step("macro_attack_until_e", binding, duration_ms=10000.0, gap_ms=1.0),)
+        checks = []
+
+        def check_state(name):
+            checks.append(name)
+            return len(checks) >= 3
+
+        output = FakeOutput()
+        cancelled, _ = SequenceRunner(clock=lambda: now[0]).run(
+            steps, output, AdvancingStopEvent(now), check_state=check_state
+        )
+
+        self.assertFalse(cancelled)
+        self.assertEqual(len(output.actions), 3)
+        self.assertEqual(set(checks), {"resonance_ready"})
+
+    def test_e_until_cd_times_out_and_continues(self):
+        now = [0.0]
+        binding = OutputBinding("key", "e")
+        steps = (make_step("macro_e_until_cd", binding, duration_ms=1000.0, gap_ms=1.0),)
+
+        output = FakeOutput()
+        cancelled, _ = SequenceRunner(clock=lambda: now[0]).run(
+            steps, output, AdvancingStopEvent(now), check_state=lambda name: False
+        )
+
+        self.assertFalse(cancelled)
+        # 预算 1 秒、间隔 0.45 秒：超时前按了若干次，然后继续推进。
+        self.assertGreaterEqual(len(output.actions), 2)
+        self.assertLessEqual(now[0], 1.5)
+
     def test_loop_requires_battle_end_callback(self):
         steps = (make_step("skill", OutputBinding("key", "e")),)
 
