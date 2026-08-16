@@ -245,12 +245,22 @@ jobs:
         uses: ok-oldking/pyappify-action@227bbb9f989febc79f8c22fa2325d90d190d3d44 # master on 2026-08-15
         if: env.BUILD_EXE == 'true' && env.USE_RELEASE == ''
 
-      - name: Stage release assets
+      - name: Verify launcher output
+        if: env.BUILD_EXE == 'true'
+        shell: pwsh
+        run: |
+          $launchers = @(Get-ChildItem -Path pyappify_dist -Filter '*-online-setup.exe' -File)
+          if ($launchers.Count -ne 1) {
+            throw "Expected exactly one online launcher, found $($launchers.Count)."
+          }
+          Write-Host "Release launcher: $($launchers[0].Name)"
+
+      - name: Stage launcher
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: env.BUILD_EXE == 'true'
         with:
           name: release-assets
-          path: pyappify_dist/*
+          path: pyappify_dist/*-online-setup.exe
           if-no-files-found: error
           retention-days: 7
 
@@ -276,10 +286,11 @@ jobs:
             ### 更新日志 ${{ needs.synchronize.outputs.start_tag }} -> ${{ needs.synchronize.outputs.end_tag }}:
               ${{ needs.synchronize.outputs.changes }}
             ### 下载说明
-              * 下载名称包含 `setup.exe` 的在线安装包，安装与自动更新使用更新仓库 [wuwa_pilot-update](https://github.com/etg227/wuwa_pilot-update)。
-              * 不要下载 `Source code` 和 `wuwa-win32.zip`。
+              * 下载 `wuwa-win32-online-setup.exe` 启动器，安装与更新使用更新仓库 [wuwa_pilot-update](https://github.com/etg227/wuwa_pilot-update)。
+              * 启动器支持手动更新、自动更新至正式版和自动更新至预发布版。
+              * GitHub 自动显示的 `Source code` 压缩包不是 Windows 安装包。
             ### 风险说明
               本项目会模拟键盘和鼠标输入，可能被游戏运营方认定为违规第三方自动化工具。请阅读 README 并自行承担使用风险。
           draft: false
           prerelease: false
-          files: pyappify_dist/*
+          files: pyappify_dist/*-online-setup.exe

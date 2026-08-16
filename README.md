@@ -13,9 +13,10 @@
 
 ## 下载与安装
 
-前往 [GitHub Releases](https://github.com/etg227/wuwa_pilot/releases) 下载名称包含 `setup.exe` 的安装包。
+前往 [GitHub Releases](https://github.com/etg227/wuwa_pilot/releases) 下载 `wuwa-win32-online-setup.exe` 启动器。
 
-- 不要下载 GitHub 自动生成的 `Source code` 压缩包或 `wuwa-win32.zip`。
+- Release 只上传在线启动器；GitHub 自动显示的 `Source code` 压缩包不是 Windows 安装包。
+- 启动器支持手动更新、自动更新至正式版和自动更新至预发布版，可在界面中自行选择。
 - 安装包没有商业代码签名，Windows 可能显示“未知发布者”；请确认文件来自本仓库。
 - 安装后的版本支持自动更新。
 - 使用早期 `beta1.0`、`beta1.1` 安装包的用户，请重新下载安装最新版。

@@ -48,6 +48,7 @@ class CombatMonitor:
         self._clock = clock
         self._status_callback = status_callback
         self._cancelled = threading.Event()
+        self._lifecycle_lock = threading.Lock()
         self._thread = None
         self._armed = False
         self._holding = False
@@ -58,13 +59,23 @@ class CombatMonitor:
         self._last_sample = None
 
     def start(self) -> None:
-        if self._thread is not None:
-            return
-        self._thread = threading.Thread(target=self._run, name="AxisCombatMonitor", daemon=True)
-        self._thread.start()
+        with self._lifecycle_lock:
+            if self._thread is not None:
+                return
+            self._thread = threading.Thread(target=self._run, name="AxisCombatMonitor", daemon=True)
+            self._thread.start()
 
-    def stop(self) -> None:
+    def stop(self, timeout: float = 1.0) -> None:
         self._cancelled.set()
+        with self._lifecycle_lock:
+            thread = self._thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=max(0.0, timeout))
+
+    @property
+    def is_alive(self) -> bool:
+        with self._lifecycle_lock:
+            return self._thread is not None and self._thread.is_alive()
 
     def allow(self, event) -> bool:
         """时间轴线程在执行每个事件前调用；False 表示暂停等待。"""

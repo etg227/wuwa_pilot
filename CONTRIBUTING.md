@@ -30,9 +30,18 @@ ruff check .
 运行时依赖的直接来源维护在 `requirements.in`，`requirements.txt` 是由 pip-tools 生成的锁定文件。更新依赖时先修改 `requirements.in`，再重新生成锁定文件，不要手工编辑 `requirements.txt`：
 
 ```powershell
-python -m pip install pip-tools
 python -m piptools compile requirements.in
 ```
+
+`setup.py` 也从 `requirements.in` 读取直接依赖，不要在其中维护第二份依赖列表。应用版本以 `config.py` 为唯一来源；开发分支保持 `dev`，发布工作流会写入 tag。
+
+CI 使用 coverage 生成覆盖率报告。覆盖率用于发现本次修改缺少的测试分支，暂不设置全项目百分比门槛，以免上游快照中的既有未覆盖代码阻塞维护。
+
+超过 25 MiB 的新文件必须由 Git LFS 管理。CI 会运行 `python scripts/check_large_files.py`，模型权重优先使用 `.onnx`、`.bin` 或 `.pth` 扩展名，以匹配仓库的 LFS 规则。
+
+## 发布验收
+
+发布前按 [发布验收清单](docs/RELEASE_CHECKLIST.md) 完成自动检查和实机测试。没有完成真实游戏验收时，不要仅凭单元测试结果创建正式版 tag。
 
 ## 提交要求
 

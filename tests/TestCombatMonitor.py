@@ -140,6 +140,49 @@ class TestCombatMonitor(unittest.TestCase):
         state["blocked"] = True
         self.assertTrue(wait_until(lambda: monitor.allow(make_event())))
 
+    def test_stop_joins_monitor_thread(self):
+        state = {"target": True}
+        monitor = self.make_monitor(state)
+        self.assertTrue(wait_until(lambda: monitor.is_alive))
+
+        monitor.stop()
+
+        self.assertFalse(monitor.is_alive)
+
+    def test_stop_during_reacquire_exits_after_call_returns(self):
+        reacquire_started = threading.Event()
+        release_reacquire = threading.Event()
+        stop_event = threading.Event()
+        target = {"found": True}
+
+        def reacquire():
+            reacquire_started.set()
+            release_reacquire.wait(1.0)
+            return False
+
+        monitor = CombatMonitor(
+            lambda: None,
+            lambda: target["found"],
+            reacquire,
+            stop_event,
+            confirm_lost_s=0.01,
+            poll_interval_s=0.005,
+            suppress_after_move={},
+        )
+        self.addCleanup(release_reacquire.set)
+        self.addCleanup(monitor.stop)
+        monitor.start()
+        self.assertTrue(wait_until(lambda: monitor._armed))
+        target["found"] = False
+        self.assertTrue(reacquire_started.wait(1.0))
+
+        stop_event.set()
+        monitor.stop(timeout=0.01)
+        self.assertTrue(monitor.is_alive)
+        release_reacquire.set()
+
+        self.assertTrue(wait_until(lambda: not monitor.is_alive))
+
 
 if __name__ == "__main__":
     unittest.main()

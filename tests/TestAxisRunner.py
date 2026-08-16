@@ -198,6 +198,32 @@ class TestAxisRunner(unittest.TestCase):
         self.assertTrue(cancelled)
         self.assertEqual(output.actions, [("down", "lshift:hold"), ("up", "lshift:hold")])
 
+    def test_gate_releases_all_overlapping_holds_once(self):
+        stop_event = threading.Event()
+        first = OutputBinding("key", "lshift", "hold")
+        second = OutputBinding("mouse", "right", "hold")
+        tap = OutputBinding("key", "e")
+        events = (
+            AxisEvent(0, 1, 0, "down", first, 0, "长按", "first_hold"),
+            AxisEvent(0, 2, 1, "down", second, 1, "长按", "second_hold"),
+            AxisEvent(1, 3, 2, "tap", tap, 2, "技能", "skill"),
+        )
+        checks = 0
+
+        def gate(event):
+            nonlocal checks
+            if event.move_id != "skill":
+                return True
+            checks += 1
+            return checks > 1
+
+        output = FakeOutput()
+        cancelled = AxisRunner().run(events, output, stop_event, speed=100, gate_callback=gate)
+
+        self.assertFalse(cancelled)
+        self.assertEqual(output.actions.count(("up", "lshift:hold")), 1)
+        self.assertEqual(output.actions.count(("up", "mouse:right:hold")), 1)
+
     def test_stop_during_last_sync_is_reported_as_cancelled(self):
         stop_event = threading.Event()
         binding = OutputBinding("key", "2")

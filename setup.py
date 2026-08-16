@@ -3,10 +3,9 @@ import os
 import setuptools
 from Cython.Build import cythonize
 from setuptools import Extension
+from packaging_meta import project_version, runtime_requirements
 
 os.environ["PYTHONIOENCODING"] = "utf-8"
-
-
 def find_pyx_packages(base_dir):
     extensions = []
     for dirpath, _, filenames in os.walk(base_dir):
@@ -34,7 +33,7 @@ extensions = find_pyx_packages(base_dir)
 
 setuptools.setup(
     name="wuwa-pilot",
-    version="0.0.1",
+    version=project_version(),
     author="etg227",
     description="Wuthering Waves automation with computer vision",
     url="https://github.com/etg227/wuwa_pilot",
@@ -46,16 +45,7 @@ setuptools.setup(
         "License :: OSI Approved :: GNU Affero General Public License v3",
         "Operating System :: Microsoft :: Windows",
     ],
-    install_requires=[
-        'pywin32>=306',
-        'darkdetect>=0.8.0',
-        'PySideSix-Frameless-Window>=0.4.3',
-        'typing-extensions>=4.11.0',
-        'PySide6-Essentials>=6.7.0',
-        'GitPython>=3.1.43',
-        'requests>=2.32.3',
-        'psutil>=6.0.0'
-    ],
-    python_requires='>=3.9',
+    install_requires=runtime_requirements(),
+    python_requires='>=3.12',
     ext_modules=cythonize(extensions, compiler_directives={'language_level': "3"})
 )
