@@ -34,8 +34,12 @@ def _step_meta(key: str, hold_ms: int) -> tuple[str, str, OutputBinding]:
         # 条件步：连点普攻直到 E 技能高亮（hold_ms 为超时预算毫秒）。
         return "macro_attack_until_e", "普攻至 E 高亮", OutputBinding("mouse", "left")
     if key == "e!cd":
-        # 条件步：连按 E 直到 E 进入 CD，确认技能真的放出（hold_ms 为超时预算毫秒）。
-        return "macro_e_until_cd", "按 E 至进入 CD", OutputBinding("key", "e")
+        # 条件步：连按 E 直到进入 CD，确认技能真的放出（hold_ms 为超时预算毫秒）。
+        return "macro_e_until_cd", "E（确认放出）", OutputBinding("key", "e")
+    if key == "r!cd":
+        return "macro_r_until_cd", "共鸣解放（确认放出）", OutputBinding("key", "r")
+    if key == "q!cd":
+        return "macro_q_until_cd", "声骸（确认放出）", OutputBinding("key", "q")
     if key in {"1", "2", "3"}:
         return f"switch_{key}", f"切人 {key}", OutputBinding("key", key)
     if key == "a":

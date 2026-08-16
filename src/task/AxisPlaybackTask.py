@@ -5,7 +5,7 @@ from PySide6.QtCore import QObject, Signal
 from src.axis.AxisChart import AxisChart, OutputBinding
 from src.axis.AxisRunner import AxisEvent, AxisOutput, AxisRunner, build_axis_events
 from src.axis.CombatMonitor import CombatMonitor
-from src.axis.SequenceRunner import SequenceRunner, build_sequence_steps
+from src.axis.SequenceRunner import UNTIL_STATES, SequenceRunner, build_sequence_steps
 from src.axis.VisualSync import verify_switch_async, wait_for_switch_sync
 from src.task.BaseCombatTask import BaseCombatTask
 
@@ -154,8 +154,7 @@ class AxisPlaybackTask(BaseCombatTask):
                 )
                 monitor.start()
             if self._sequence_mode and any(
-                step.move_id in {"macro_attack_until_e", "macro_e_until_cd"}
-                for step in sequence_steps
+                step.move_id in UNTIL_STATES for step in sequence_steps
             ):
                 # E 高亮检测需要角色对象；识别失败则条件步按超时推进，不阻塞播放。
                 try:
@@ -248,6 +247,12 @@ class AxisPlaybackTask(BaseCombatTask):
             if name == "resonance_cd":
                 char = self.get_current_char(raise_exception=False)
                 return bool(char is not None and char.has_cd("resonance"))
+            if name == "liberation_cd":
+                char = self.get_current_char(raise_exception=False)
+                return bool(char is not None and char.has_cd("liberation"))
+            if name == "echo_cd":
+                char = self.get_current_char(raise_exception=False)
+                return bool(char is not None and char.has_cd("echo"))
         except Exception:
             return False
         return False

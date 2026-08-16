@@ -19,6 +19,13 @@ AFTER_MIN_MS = {
 DEFAULT_MIN_GAP_MS = 60
 # 切人后到下一动作的衔接间隔：必须足够短，连段才能接上。
 SWITCH_FOLLOW_MS = 50
+# 条件步：连按直到该状态出现（技能进 CD 即确认放出）。
+UNTIL_STATES = {
+    "macro_attack_until_e": "resonance_ready",
+    "macro_e_until_cd": "resonance_cd",
+    "macro_r_until_cd": "liberation_cd",
+    "macro_q_until_cd": "echo_cd",
+}
 
 
 @dataclass(frozen=True)
@@ -165,11 +172,11 @@ class SequenceRunner:
             output.tap(binding)
             return not stop_event.wait(self._after_wait_s(step, basic_interval_ms) * time_scale)
 
-        if step.move_id in {"macro_attack_until_e", "macro_e_until_cd"}:
-            # 条件步：连按直到目标状态出现；超时按预算继续推进（fail-open）。
-            state_name = (
-                "resonance_ready" if step.move_id == "macro_attack_until_e" else "resonance_cd"
-            )
+        if step.move_id in UNTIL_STATES:
+            # 条件步：连按直到目标状态出现（技能进 CD 即确认放出）；
+            # 超时按预算继续推进（fail-open）。确认后只等动画时间，
+            # 不把整个预算计入等待。
+            state_name = UNTIL_STATES[step.move_id]
             deadline = self.clock() + max(step.duration_ms, 1000) / 1000 * time_scale
             while True:
                 output.tap(binding)
@@ -180,9 +187,8 @@ class SequenceRunner:
                     break
                 if stop_event.wait(min(basic_interval_ms / 1000 * time_scale, remaining)):
                     return False
-            return not stop_event.wait(
-                max(step.gap_ms, DEFAULT_MIN_GAP_MS) / 1000 * time_scale
-            )
+            rest_ms = max(step.gap_ms - step.duration_ms, DEFAULT_MIN_GAP_MS)
+            return not stop_event.wait(rest_ms / 1000 * time_scale)
 
         if binding.mode == "hold":
             output.press(binding)
