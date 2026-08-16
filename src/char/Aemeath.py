@@ -23,7 +23,10 @@ class Aemeath(BaseChar):
         from src.char.Chisa import Chisa
         from src.char.Denia import Denia
 
-        return bool(self.task.has_char(Denia) and self.task.has_char(Chisa))
+        task = self.task
+        if task is None or not hasattr(task, "has_char"):
+            return False
+        return bool(task.has_char(Denia) and task.has_char(Chisa))
 
     def do_perform(self):
         if self.in_aidaqian_team() and self.is_first_engage():

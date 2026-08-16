@@ -26,10 +26,14 @@ class Chisa(BaseChar):
         from src.char.Aemeath import Aemeath
         from src.char.Denia import Denia
 
-        return bool(self.task.has_char(Aemeath) and self.task.has_char(Denia))
+        task = self.task
+        if task is None or not hasattr(task, "has_char"):
+            return False
+        return bool(task.has_char(Aemeath) and task.has_char(Denia))
 
     def get_switch_priority(self, current_char=None, has_intro=False, target_low_con=False):
-        if self.in_aidaqian_team() and time.time() - self.task.combat_start < 12:
+        if (self.in_aidaqian_team()
+                and time.time() - (getattr(self.task, "combat_start", 0) or 0) < 12):
             from src.char.Denia import Denia
 
             denia = self.task.has_char(Denia)

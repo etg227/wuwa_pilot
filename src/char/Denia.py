@@ -67,11 +67,14 @@ class Denia(BaseChar):
         from src.char.Aemeath import Aemeath
         from src.char.Chisa import Chisa
 
-        return bool(self.task.has_char(Aemeath) and self.task.has_char(Chisa))
+        task = self.task
+        if task is None or not hasattr(task, "has_char"):
+            return False
+        return bool(task.has_char(Aemeath) and task.has_char(Chisa))
 
     def get_switch_priority(self, current_char=None, has_intro=False, target_low_con=False):
         if (self.in_aidaqian_team() and not self.lib_1_casted and self.lib_2 < 0
-                and time.time() - self.task.combat_start < 8):
+                and time.time() - (getattr(self.task, "combat_start", 0) or 0) < 8):
             # 爱达千开轴：战斗开始先切达妮娅打出 E 与一段大。
             return SwitchPriority.HIGH
         if has_intro:

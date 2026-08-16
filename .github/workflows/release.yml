@@ -53,8 +53,13 @@ jobs:
             echo "无效的发布 tag：$TAG" >&2
             exit 1
           fi
-          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
-            echo "tag $TAG 已存在，跳过创建"
+          head_sha="$(git rev-parse HEAD)"
+          if existing="$(git rev-parse "refs/tags/$TAG^{commit}" 2>/dev/null)"; then
+            if [ "$existing" != "$head_sha" ]; then
+              echo "tag $TAG 已存在且指向 $existing，与当前提交 $head_sha 不一致；请换新版本号发布" >&2
+              exit 1
+            fi
+            echo "tag $TAG 已存在且指向当前提交，跳过创建"
             exit 0
           fi
           git tag "$TAG"
