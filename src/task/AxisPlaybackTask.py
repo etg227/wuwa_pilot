@@ -59,6 +59,7 @@ class AxisPlaybackTask(CombatCheck):
         self._pause_on_target_loss = False
         self._target_loss_max_wait = 30.0
         self._target_loss_timeout_stop = False
+        self._pause_auto_combat_after = False
         self._last_timing = None
 
     def configure_playback(
@@ -74,6 +75,7 @@ class AxisPlaybackTask(CombatCheck):
         pause_on_target_loss: bool = False,
         target_loss_max_wait: float = 30.0,
         target_loss_timeout_stop: bool = False,
+        pause_auto_combat_after: bool = False,
     ) -> None:
         if self.running or self.enabled:
             raise RuntimeError("已有椰果启动器任务正在执行或等待执行")
@@ -87,6 +89,7 @@ class AxisPlaybackTask(CombatCheck):
             self._pause_on_target_loss = bool(pause_on_target_loss)
             self._target_loss_max_wait = max(5.0, float(target_loss_max_wait))
             self._target_loss_timeout_stop = bool(target_loss_timeout_stop)
+            self._pause_auto_combat_after = bool(pause_auto_combat_after)
         self._stop_event.clear()
         self._last_timing = None
 
@@ -114,6 +117,9 @@ class AxisPlaybackTask(CombatCheck):
             if interaction is None:
                 raise RuntimeError("游戏输入设备尚未连接")
             interaction.on_run()
+            # 执行器单线程：播放期间触发任务不会运行，自动战斗只在启动前和结束后有输入。
+            auto_combat = self._find_auto_combat()
+            auto_combat_active = bool(auto_combat is not None and auto_combat.enabled)
             monitor = None
             if self._pause_on_target_loss:
                 monitor = CombatMonitor(
@@ -126,7 +132,8 @@ class AxisPlaybackTask(CombatCheck):
                     status_callback=self.signals.status_changed.emit,
                 )
                 monitor.start()
-            self.signals.status_changed.emit(f"正在执行：{chart.title}")
+            title_suffix = "｜自动战斗已让位" if auto_combat_active else ""
+            self.signals.status_changed.emit(f"正在执行：{chart.title}{title_suffix}")
             runner = AxisRunner()
             try:
                 cancelled = runner.run(
@@ -147,6 +154,12 @@ class AxisPlaybackTask(CombatCheck):
             if self._last_timing is not None:
                 _, average_ms, max_ms = self._last_timing
                 message += f"｜平均偏差 {average_ms:.1f} ms，最大 {max_ms:.1f} ms"
+            if auto_combat_active:
+                if self._pause_auto_combat_after:
+                    auto_combat.disable()
+                    message += "｜已暂停自动战斗"
+                else:
+                    message += "｜自动战斗接管后续战斗"
             self.signals.playback_finished.emit(cancelled, message)
         except Exception as error:
             self.signals.playback_finished.emit(True, f"执行失败：{error}")
@@ -154,6 +167,12 @@ class AxisPlaybackTask(CombatCheck):
         finally:
             with self._settings_lock:
                 self._playback_settings = None
+
+    def _find_auto_combat(self):
+        for task in getattr(self.executor, "trigger_tasks", ()):
+            if type(task).__name__ == "AutoCombatTask":
+                return task
+        return None
 
     def on_destroy(self):
         self._stop_event.set()
