@@ -82,6 +82,28 @@ class TestAxisChart(unittest.TestCase):
         self.assertEqual(mapping["dodge_hold"].config_text, "rshift:hold")
         self.assertEqual(mapping["start_challenge"].config_text, "f")
 
+    def test_hold_skill_uses_local_resonance_key(self):
+        payload = create_axis_payload()
+        payload["chart"]["steps"].append(
+            {
+                "id": "step_hold_skill",
+                "moveId": "custom_hold_skill",
+                "label": "长按技能",
+                "startMin": 700,
+                "startMax": 700,
+                "durationMin": 500,
+                "durationMax": 500,
+                "samples": [],
+            }
+        )
+        chart = AxisChart.from_dict(payload)
+
+        default_mapping = build_default_output_mapping(chart)
+        custom_mapping = build_default_output_mapping(chart, {"Resonance Key": "x"})
+
+        self.assertEqual(default_mapping["custom_hold_skill"].config_text, "e:hold")
+        self.assertEqual(custom_mapping["custom_hold_skill"].config_text, "x:hold")
+
     def test_legacy_mouse_right_typo_is_supported(self):
         binding = normalize_axis_binding("MouseRightHoid")
 

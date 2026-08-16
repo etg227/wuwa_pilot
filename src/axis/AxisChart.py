@@ -300,10 +300,13 @@ def build_default_output_mapping(chart: AxisChart, game_hotkeys: dict | None = N
     """按动作语义优先适配本机游戏热键，未知动作再采用轴作者的绑定。"""
 
     hotkeys = game_hotkeys or {}
+    skill_key = str(hotkeys.get("Resonance Key", "e")).casefold()
     semantic_defaults = {
         "basic_attack": OutputBinding("mouse", "left", "repeat"),
         "heavy_attack": OutputBinding("mouse", "left", "hold"),
-        "skill": OutputBinding("key", str(hotkeys.get("Resonance Key", "e")).casefold()),
+        "skill": OutputBinding("key", skill_key),
+        "skill_hold": OutputBinding("key", skill_key, "hold"),
+        "resonance_skill_hold": OutputBinding("key", skill_key, "hold"),
         "echo": OutputBinding("key", str(hotkeys.get("Echo Key", "q")).casefold()),
         "liberation": OutputBinding("key", str(hotkeys.get("Liberation Key", "r")).casefold()),
         "dodge": OutputBinding("key", str(hotkeys.get("Dodge Key", "lshift")).casefold()),
@@ -316,6 +319,11 @@ def build_default_output_mapping(chart: AxisChart, game_hotkeys: dict | None = N
     result: dict[str, OutputBinding | None] = {}
     for move_id in chart.move_ids:
         binding = semantic_defaults.get(move_id)
+        labels = {chart.label_for(move_id)}
+        labels.update(step.label for step in chart.steps if step.move_id == move_id)
+        compact_labels = {re.sub(r"[\s_-]", "", label).casefold() for label in labels}
+        if binding is None and "长按技能" in compact_labels:
+            binding = OutputBinding("key", skill_key, "hold")
         if binding is None:
             binding = next(
                 (parsed for code in chart.binding_codes.get(move_id, ()) if (parsed := normalize_axis_binding(code))),
