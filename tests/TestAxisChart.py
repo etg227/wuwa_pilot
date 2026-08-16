@@ -87,6 +87,43 @@ class TestAxisChart(unittest.TestCase):
 
         self.assertEqual(binding.config_text, "mouse:right:hold")
 
+    def test_empty_move_is_recognized_as_noop(self):
+        payload = create_axis_payload()
+        payload["chart"]["steps"].append(
+            {
+                "id": "step_empty",
+                "moveId": "custom_empty",
+                "label": "空招式",
+                "startMin": 700,
+                "startMax": 700,
+                "durationMin": 100,
+                "durationMax": 100,
+                "samples": [],
+            }
+        )
+        chart = AxisChart.from_dict(payload)
+
+        self.assertTrue(chart.is_noop_move("custom_empty"))
+        self.assertIsNone(build_default_output_mapping(chart)["custom_empty"])
+
+    def test_unknown_unmapped_move_is_not_silently_treated_as_noop(self):
+        payload = create_axis_payload()
+        payload["chart"]["steps"].append(
+            {
+                "id": "step_unknown",
+                "moveId": "custom_action",
+                "label": "自定义动作",
+                "startMin": 700,
+                "startMax": 700,
+                "durationMin": 100,
+                "durationMax": 100,
+                "samples": [],
+            }
+        )
+        chart = AxisChart.from_dict(payload)
+
+        self.assertFalse(chart.is_noop_move("custom_action"))
+
     def test_extract_community_id_from_download_url(self):
         result = extract_community_id(
             "https://nova.fb520.site/api/community/download/wwc_7dd8fdd2-44ce-4281-82e2-f03a3466bf30"

@@ -99,6 +99,20 @@ class AxisChart:
     def label_for(self, move_id: str) -> str:
         return self.move_labels.get(move_id, move_id)
 
+    def is_noop_move(self, move_id: str) -> bool:
+        """空招式只占用时间线位置，不需要产生键鼠输出。"""
+
+        compact_id = re.sub(r"[\s_-]", "", move_id).casefold()
+        labels = {self.label_for(move_id)}
+        labels.update(step.label for step in self.steps if step.move_id == move_id)
+        compact_labels = {re.sub(r"[\s_-]", "", label).casefold() for label in labels}
+        return compact_id in {"noop", "emptymove", "emptyaction"} or bool(compact_labels & {
+            "空招式",
+            "空动作",
+            "无动作",
+            "占位动作",
+        })
+
     @classmethod
     def from_json(cls, content: str | bytes) -> "AxisChart":
         try:

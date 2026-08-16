@@ -319,7 +319,10 @@ class AxisControlTab(CustomTab):
                     pass
             output_item = QTableWidgetItem(binding.config_text if binding else "")
             if binding is None:
-                output_item.setToolTip("这个动作无法自动识别，请手动填写实际输出")
+                if self.chart.is_noop_move(move_id):
+                    output_item.setToolTip("空招式仅占用时间线位置，无需实际输出")
+                else:
+                    output_item.setToolTip("这个动作无法自动识别，请手动填写实际输出")
             self.mapping_table.setItem(row, 0, label_item)
             self.mapping_table.setItem(row, 1, author_item)
             self.mapping_table.setItem(row, 2, output_item)
@@ -345,6 +348,9 @@ class AxisControlTab(CustomTab):
             label = self.mapping_table.item(row, 0).text()
             text = self.mapping_table.item(row, 2).text().strip()
             if not text:
+                if self.chart.is_noop_move(move_id):
+                    mappings[move_id] = None
+                    continue
                 raise AxisFormatError(f"动作“{label}”尚未配置实际输出")
             try:
                 binding = parse_output_binding(text)
