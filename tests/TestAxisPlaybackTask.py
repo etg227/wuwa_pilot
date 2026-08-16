@@ -2,7 +2,7 @@ import threading
 import time
 import unittest
 
-from src.axis.VisualSync import wait_for_switch_sync
+from src.axis.VisualSync import verify_switch_async, wait_for_switch_sync
 
 
 class TestAxisPlaybackTask(unittest.TestCase):
@@ -58,6 +58,29 @@ class TestAxisPlaybackTask(unittest.TestCase):
         )
 
         self.assertLess(time.monotonic() - started, 0.2)
+
+
+    def test_async_switch_verify_retries_after_timeout(self):
+        stop_event = threading.Event()
+        failed = threading.Event()
+
+        thread = verify_switch_async(
+            lambda: None, lambda: (True, 0, None), 1, stop_event, 0.05, failed.set
+        )
+        thread.join(1.0)
+
+        self.assertTrue(failed.is_set())
+
+    def test_async_switch_verify_success_skips_retry(self):
+        stop_event = threading.Event()
+        failed = threading.Event()
+
+        thread = verify_switch_async(
+            lambda: None, lambda: (True, 1, None), 1, stop_event, 0.2, failed.set
+        )
+        thread.join(1.0)
+
+        self.assertFalse(failed.is_set())
 
 
 if __name__ == "__main__":

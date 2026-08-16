@@ -139,7 +139,8 @@ class AxisControlTab(CustomTab):
         self.text_axis_edit = QPlainTextEdit(container)
         self.text_axis_edit.setPlaceholderText("示例：\n1 a3 e\n2 e r q\n循环\n3 a e\n1 a2 e r")
         self.text_axis_edit.setPlainText(str(self.settings.get("Text Axis", "")))
-        self.text_axis_edit.setMinimumHeight(120)
+        self.text_axis_edit.setMinimumHeight(80)
+        self.text_axis_edit.setMaximumHeight(140)
         layout.addWidget(self.text_axis_edit)
         row = QHBoxLayout()
         row.addStretch(1)
@@ -177,7 +178,7 @@ class AxisControlTab(CustomTab):
         self.mapping_table.setHorizontalHeaderLabels(["动作", "轴作者按键", "实际输出"])
         self.mapping_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.mapping_table.verticalHeader().hide()
-        self.mapping_table.setMinimumHeight(220)
+        self.mapping_table.setMinimumHeight(132)
         layout.addWidget(self.mapping_table)
 
         layout.addWidget(BodyLabel("时间轴预览"))
@@ -188,7 +189,7 @@ class AxisControlTab(CustomTab):
         # 行号即“循环起点”的步序号，保持可见。
         self.timeline_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.timeline_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.timeline_table.setMinimumHeight(300)
+        self.timeline_table.setMinimumHeight(160)
         layout.addWidget(self.timeline_table)
         self.add_card("识别结果", container)
 
@@ -247,7 +248,7 @@ class AxisControlTab(CustomTab):
         options.addRow("挑战触发", self.start_trigger_check)
 
         self.visual_sync_check = QCheckBox(
-            "切人后等待角色 UI 确认；识别失败或超时会自动继续时间轴", container
+            "切人校验：推进模式立刻衔接下一动作、后台确认失败自动补按一次；时间轴模式同步等待", container
         )
         self.visual_sync_check.setChecked(bool(self.settings.get("Visual Sync", True)))
         options.addRow("视觉同步", self.visual_sync_check)

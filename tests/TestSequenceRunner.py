@@ -75,23 +75,29 @@ class TestSequenceRunner(unittest.TestCase):
         self.assertEqual(output.actions, [("down", "mouse:left:hold"), ("up", "mouse:left:hold")])
         self.assertGreaterEqual(now[0], 0.8)
 
-    def test_switch_retries_once_when_confirm_fails(self):
-        binding = OutputBinding("key", "2")
-        steps = (make_step("switch_2", binding, label="切人"),)
-        confirms = []
+    def test_switch_fires_callback_and_chains_immediately(self):
+        now = [0.0]
+        switch = OutputBinding("key", "2")
+        skill = OutputBinding("key", "e")
+        steps = (
+            make_step("switch_2", switch, gap_ms=900.0, step_index=0, label="切人"),
+            make_step("skill", skill, gap_ms=1.0, step_index=1),
+        )
+        seen = []
 
-        def confirm(_step):
-            confirms.append(True)
-            return len(confirms) > 1
+        class TimedOutput(FakeOutput):
+            def tap(self, binding):
+                self.actions.append((binding.code, now[0]))
 
-        output = FakeOutput()
-        cancelled, _ = SequenceRunner().run(
-            steps, output, threading.Event(), switch_confirm=confirm
+        output = TimedOutput()
+        cancelled, _ = SequenceRunner(clock=lambda: now[0]).run(
+            steps, output, AdvancingStopEvent(now), on_switch=seen.append
         )
 
         self.assertFalse(cancelled)
-        self.assertEqual(len([a for a in output.actions if a[0] == "tap"]), 2)
-        self.assertEqual(len(confirms), 2)
+        self.assertEqual(seen[0].move_id, "switch_2")
+        # 切人后 0.05 秒内衔接下一动作，不等待录制间隔或识别确认。
+        self.assertAlmostEqual(output.actions[1][1] - output.actions[0][1], 0.05)
 
     def test_loop_repeats_from_entry_until_continue_returns_false(self):
         binding = OutputBinding("key", "e")

@@ -17,6 +17,8 @@ AFTER_MIN_MS = {
     "jump": 300,
 }
 DEFAULT_MIN_GAP_MS = 60
+# 切人后到下一动作的衔接间隔：必须足够短，连段才能接上。
+SWITCH_FOLLOW_MS = 50
 
 
 @dataclass(frozen=True)
@@ -60,7 +62,8 @@ def build_sequence_steps(
 class SequenceRunner:
     """按顺序推进执行：完成一步再进入下一步，不使用绝对时间戳。
 
-    普攻按可配置的出手间隔逐次按满，切人经确认失败会重试一次，
+    普攻按可配置的出手间隔逐次按满；切人后立刻衔接下一个动作，
+    校验与补按由 on_switch 回调在后台完成，不阻塞连段衔接。
     循环模式在每轮结束后根据回调决定是否继续，用于打到战斗结束。
     """
 
@@ -81,7 +84,7 @@ class SequenceRunner:
         should_continue_loop: Callable[[], bool] | None = None,
         max_loops: int = MAX_SEQUENCE_LOOPS,
         gate_callback: Callable[[SequenceStep], bool] | None = None,
-        switch_confirm: Callable[[SequenceStep], bool] | None = None,
+        on_switch: Callable[[SequenceStep], None] | None = None,
         action_callback: Callable[[SequenceStep], None] | None = None,
         progress_callback: Callable[[float], None] | None = None,
         status_callback: Callable[[str], None] | None = None,
@@ -134,7 +137,7 @@ class SequenceRunner:
             if action_callback:
                 action_callback(step)
             if not self._execute_step(
-                step, output, stop_event, basic_interval_ms, repeat_interval_ms, speed, switch_confirm
+                step, output, stop_event, basic_interval_ms, repeat_interval_ms, speed, on_switch
             ):
                 cancelled = True
                 break
@@ -144,7 +147,7 @@ class SequenceRunner:
         return cancelled, loops_done
 
     def _execute_step(
-        self, step, output, stop_event, basic_interval_ms, repeat_interval_ms, speed, switch_confirm
+        self, step, output, stop_event, basic_interval_ms, repeat_interval_ms, speed, on_switch
     ) -> bool:
         time_scale = 1.0 / speed
         binding = step.binding
@@ -177,14 +180,14 @@ class SequenceRunner:
             )
 
         output.tap(binding)
-        if step.move_id in SWITCH_MOVES and switch_confirm is not None:
-            if not switch_confirm(step) and not stop_event.is_set():
-                # 切人没有得到画面确认：重试一次，仍失败则继续推进。
-                output.tap(binding)
-                switch_confirm(step)
-            if stop_event.is_set():
-                return False
-            return not stop_event.wait(DEFAULT_MIN_GAP_MS / 1000 * time_scale)
+        if step.move_id in SWITCH_MOVES:
+            # 切人必须立刻衔接下一个动作；校验与补按交给 on_switch 在后台执行。
+            if on_switch is not None:
+                try:
+                    on_switch(step)
+                except Exception:
+                    pass
+            return not stop_event.wait(SWITCH_FOLLOW_MS / 1000 * time_scale)
 
         return not stop_event.wait(self._after_wait_s(step, basic_interval_ms) * time_scale)
 

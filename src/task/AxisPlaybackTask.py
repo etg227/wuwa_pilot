@@ -6,7 +6,7 @@ from src.axis.AxisChart import AxisChart, OutputBinding
 from src.axis.AxisRunner import AxisEvent, AxisOutput, AxisRunner, build_axis_events
 from src.axis.CombatMonitor import CombatMonitor
 from src.axis.SequenceRunner import SequenceRunner, build_sequence_steps
-from src.axis.VisualSync import wait_for_switch_sync
+from src.axis.VisualSync import verify_switch_async, wait_for_switch_sync
 from src.combat.CombatCheck import CombatCheck
 
 
@@ -170,7 +170,7 @@ class AxisPlaybackTask(CombatCheck):
                         loop_start_step=self._loop_start_step - 1,
                         should_continue_loop=(lambda: not monitor.gave_up) if monitor else None,
                         gate_callback=monitor.allow if monitor else None,
-                        switch_confirm=self._sequence_switch_confirm if self._visual_sync else None,
+                        on_switch=self._on_sequence_switch if self._visual_sync else None,
                         action_callback=self._on_action,
                         progress_callback=lambda value: self.signals.progress_changed.emit(round(value)),
                         status_callback=self.signals.status_changed.emit,
@@ -226,14 +226,28 @@ class AxisPlaybackTask(CombatCheck):
         self._last_timing = (current_ms, average_ms, max_ms)
         self.signals.timing_changed.emit(current_ms, average_ms, max_ms)
 
-    def _sequence_switch_confirm(self, step) -> bool:
+    def _on_sequence_switch(self, step) -> None:
+        """切人后不阻塞衔接：后台校验槽位，确认失败补按一次。"""
         expected_slot = int(step.move_id[-1]) - 1
-        return wait_for_switch_sync(
+        binding = step.binding
+
+        def retry():
+            interaction = self.executor.interaction
+            if interaction is None or self._stop_event.is_set():
+                return
+            self.signals.status_changed.emit(f"切人 {expected_slot + 1} 未确认，已补按")
+            if binding.kind == "mouse":
+                interaction.click(-1, -1, move=False, down_time=0.015, key=binding.code)
+            else:
+                interaction.send_key(binding.code, 0.02)
+
+        verify_switch_async(
             self.next_frame,
             self.in_team,
             expected_slot,
             self._stop_event,
             self._sync_timeout,
+            retry,
         )
 
     def _sync_after_switch(self, event: AxisEvent) -> bool:

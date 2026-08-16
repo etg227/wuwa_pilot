@@ -1,4 +1,14 @@
 if __name__ == '__main__':
+    import sys
+
+    if sys.platform == 'win32':
+        import ctypes
+
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('etg227.WuwaPilot')
+        except Exception:
+            pass
+
     from config import config
     from ok import OK
 

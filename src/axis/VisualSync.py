@@ -3,6 +3,31 @@ import time
 from collections.abc import Callable
 
 
+def verify_switch_async(
+    next_frame: Callable[[], object],
+    in_team: Callable[[], tuple],
+    expected_slot: int,
+    stop_event: threading.Event,
+    timeout: float,
+    on_failed: Callable[[], None],
+) -> threading.Thread:
+    """后台校验切人结果，不阻塞时间轴；确认失败时调用 on_failed 补按。"""
+
+    def worker() -> None:
+        if not wait_for_switch_sync(next_frame, in_team, expected_slot, stop_event, timeout):
+            if not stop_event.is_set():
+                try:
+                    on_failed()
+                except Exception:
+                    pass
+
+    thread = threading.Thread(
+        target=worker, name=f"AxisSwitchVerify-{expected_slot + 1}", daemon=True
+    )
+    thread.start()
+    return thread
+
+
 def wait_for_switch_sync(
     next_frame: Callable[[], object],
     in_team: Callable[[], tuple],
