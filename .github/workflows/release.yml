@@ -1,6 +1,7 @@
 name: Windows Release
-run-name: Windows release · ${{ github.ref_name }}
+run-name: Windows release · ${{ inputs.version || github.ref_name }}
 
+# 0. tag         手动触发时在当前分支创建发布 tag（Actions 创建的 tag 不再触发 push 事件）
 # 1. validate    跑全部测试
 # 2. synchronize 把 deploy.txt 列出的运行时文件同步到更新仓库 wuwa_pilot-update
 # 3. package     只有正式版 tag（vX.Y.Z，不带 -beta）才构建安装包
@@ -11,9 +12,14 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '发布 tag（vX.Y.Z），将在当前分支最新提交上创建'
+        required: true
 
 concurrency:
-  group: windows-release-${{ github.ref }}
+  group: windows-release-${{ inputs.version || github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -24,11 +30,39 @@ env:
   PYTHONIOENCODING: 'UTF-8'
   PYTHONLEGACYWINDOWSSTDIO: 'UTF-8'
   BUILD_EXE: 'true'
+  RELEASE_TAG: ${{ inputs.version || github.ref_name }}
 #  USE_RELEASE: 'https://api.github.com/repos/etg227/wuwa_pilot/releases/tags/v1.0.0'
 
 jobs:
+  tag:
+    name: 0 · Ensure release tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Create tag on manual dispatch
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ inputs.version }}
+        run: |
+          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "无效的发布 tag：$TAG" >&2
+            exit 1
+          fi
+          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "tag $TAG 已存在，跳过创建"
+            exit 0
+          fi
+          git tag "$TAG"
+          git push origin "refs/tags/$TAG"
+
   validate:
     name: 1 · Validate
+    needs: tag
     runs-on: windows-latest
 
     steps:
@@ -63,8 +97,6 @@ jobs:
           python -m pip install -r requirements-dev.txt
 
       - name: Prepare release requirements
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: python -m ok.update.inline_ok_requirements --tag "$env:RELEASE_TAG"
 
       - name: Run tests
@@ -129,16 +161,12 @@ jobs:
           python -m pip install -r requirements-dev.txt
 
       - name: Prepare release requirements
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: python -m ok.update.inline_ok_requirements --tag "$env:RELEASE_TAG"
 
       - name: Check release version
         id: release_version
         if: env.BUILD_EXE == 'true'
         shell: pwsh
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           $isRelease = $env:RELEASE_TAG -match '^v?\d+\.\d+\.\d+$'
           "is_release=$($isRelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
@@ -149,8 +177,6 @@ jobs:
       # published version, so a release tag in wuwa_pilot-update stays immutable.
       - name: Protect published update tags
         shell: pwsh
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           $sourceCommit = git rev-parse "$env:RELEASE_TAG^{commit}"
           if ($LASTEXITCODE -ne 0) {
@@ -184,7 +210,7 @@ jobs:
           repos: |
             https://etg227:${{ secrets.UPDATE_REPO_TOKEN }}@github.com/etg227/wuwa_pilot-update.git
           sync_list: 'deploy.txt'
-          tag: ${{ github.ref_name }}
+          tag: ${{ env.RELEASE_TAG }}
           gitignore_file: '.update_repo_gitignore'
           show_author: true
 
@@ -226,8 +252,6 @@ jobs:
           python -m pip install -r requirements-dev.txt
 
       - name: Prepare release requirements
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: python -m ok.update.inline_ok_requirements --tag "$env:RELEASE_TAG"
 
       - name: Reuse base executable
@@ -279,6 +303,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           body: |
             ### 更新日志 ${{ needs.synchronize.outputs.start_tag }} -> ${{ needs.synchronize.outputs.end_tag }}:
               ${{ needs.synchronize.outputs.changes }}
