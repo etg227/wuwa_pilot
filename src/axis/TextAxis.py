@@ -3,8 +3,8 @@ import re
 from src.axis.AxisChart import AxisChart, AxisFormatError, AxisStep, MAX_AXIS_STEPS
 
 # 文字轴语法：空白分隔的动作序列，# 到行尾是注释。
-# 1/2/3=切人  a=普攻(a3=三次)  e=共鸣技能  q=声骸  r=共鸣解放
-# d/闪=闪避  j/跳=跳跃  h/重=重击(h1.2=长按1.2秒)  f=处决或交互
+# 1/2/3=切人  a=普攻(a3=三次)  e=共鸣技能(e1.5=长按1.5秒)  q=声骸  r=共鸣解放
+# d/闪=闪避  j/跳=跳跃  z/重=重击(z1.2=长按1.2秒)  f=处决或交互
 # w0.5/等0.5=等待0.5秒  循环/loop=之后的步骤循环播放
 ALIASES = {
     "普": "a",
@@ -13,7 +13,7 @@ ALIASES = {
     "大": "r",
     "闪": "d",
     "跳": "j",
-    "重": "h",
+    "重": "z",
     "切1": "1",
     "切2": "2",
     "切3": "3",
@@ -81,11 +81,18 @@ def parse_text_axis(text: str) -> tuple[AxisChart, int | None]:
             move_id, label, duration = MOVE_DEFS["a"]
             append_step(move_id, label, duration, count)
             continue
-        if match := re.fullmatch(r"h(\d+(?:\.\d+)?)?", token):
+        if match := re.fullmatch(r"z(\d+(?:\.\d+)?)?", token):
             duration_ms = float(match.group(1) or 0.6) * 1000
             if duration_ms < 100 or duration_ms > 10000:
                 raise AxisFormatError(f"第 {position} 个动作“{raw}”长按时长无效")
             append_step("heavy_attack", "重击", duration_ms)
+            continue
+        if match := re.fullmatch(r"e(\d+(?:\.\d+)?)", token):
+            # 洛瑟拉、齐莎这类角色的共鸣技能需要长按；按下保持后释放。
+            duration_ms = float(match.group(1)) * 1000
+            if duration_ms < 100 or duration_ms > 10000:
+                raise AxisFormatError(f"第 {position} 个动作“{raw}”长按时长无效")
+            append_step("skill_hold", "长按共鸣技能", duration_ms)
             continue
         if match := re.fullmatch(r"(?:w|等)(\d+(?:\.\d+)?)", token):
             duration_ms = float(match.group(1)) * 1000

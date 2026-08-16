@@ -131,8 +131,9 @@ class AxisControlTab(CustomTab):
         layout.addWidget(
             BodyLabel(
                 "直接输入动作序列，用推进模式执行。语法：1/2/3=切人，a=普攻（a3=三次），"
-                "e=共鸣技能，q=声骸，r=共鸣解放，d=闪避，j=跳跃，h=重击（h1.2=长按1.2秒），"
-                "f=处决/交互，w0.5=等待0.5秒，“循环”=之后的步骤循环播放，#=注释。"
+                "e=共鸣技能（e1.5=长按1.5秒），q=声骸，r=共鸣解放，d=闪避，j=跳跃，"
+                "z=重击（z1.2=长按1.2秒），f=处决/交互，w0.5=等待0.5秒，"
+                "“循环”=之后的步骤循环播放，#=注释。"
             )
         )
         self.text_axis_edit = QPlainTextEdit(container)

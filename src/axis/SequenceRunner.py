@@ -10,6 +10,7 @@ MAX_SEQUENCE_LOOPS = 100
 # 推进模式下各类动作出手后的最小间隔（毫秒）；录制间隔更长时取录制值。
 AFTER_MIN_MS = {
     "skill": 500,
+    "skill_hold": 500,
     "echo": 400,
     "liberation": 1200,
     "dodge": 300,

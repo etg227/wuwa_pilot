@@ -304,6 +304,7 @@ def build_default_output_mapping(chart: AxisChart, game_hotkeys: dict | None = N
         "basic_attack": OutputBinding("mouse", "left", "repeat"),
         "heavy_attack": OutputBinding("mouse", "left", "hold"),
         "skill": OutputBinding("key", str(hotkeys.get("Resonance Key", "e")).casefold()),
+        "skill_hold": OutputBinding("key", str(hotkeys.get("Resonance Key", "e")).casefold(), "hold"),
         "echo": OutputBinding("key", str(hotkeys.get("Echo Key", "q")).casefold()),
         "liberation": OutputBinding("key", str(hotkeys.get("Liberation Key", "r")).casefold()),
         "dodge": OutputBinding("key", str(hotkeys.get("Dodge Key", "lshift")).casefold()),
