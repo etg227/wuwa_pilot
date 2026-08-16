@@ -7,7 +7,7 @@ from pathlib import Path
 
 MAX_BYTES = 25 * 1024 * 1024
 # 仓库不使用 Git LFS：免费带宽配额按所有人的克隆下载计费，长期是负担。
-# 新的大文件应放入 Release 资产或更新仓库，由程序按需下载；存量模型豁免。
+# 新的大文件只能放入 GitHub Release 资产，由程序按需下载；存量模型豁免。
 LEGACY_LARGE_FILES = {"assets/echo_model/echo.onnx"}
 
 
@@ -34,7 +34,7 @@ def main() -> int:
         print("\n".join(f"- {item}" for item in legacy))
     if failures:
         print(f"以下文件超过 {MAX_BYTES // 1024 // 1024} MiB，不要提交进 Git 仓库：", file=sys.stderr)
-        print("请放入 Release 资产或更新仓库，由程序按需下载。", file=sys.stderr)
+        print("请放入 GitHub Release 资产，由程序按需下载；不要提交到主仓库或更新仓库。", file=sys.stderr)
         print("\n".join(f"- {item}" for item in failures), file=sys.stderr)
         return 1
     print("大文件体积检查通过")

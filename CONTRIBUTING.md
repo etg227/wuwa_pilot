@@ -37,7 +37,7 @@ python -m piptools compile requirements.in
 
 CI 使用 coverage 生成覆盖率报告。覆盖率用于发现本次修改缺少的测试分支，暂不设置全项目百分比门槛，以免上游快照中的既有未覆盖代码阻塞维护。
 
-本仓库不使用 Git LFS：LFS 免费带宽配额按所有人的克隆下载计费，对社区分发的仓库是长期负担。CI 会运行 `python scripts/check_large_files.py`，拒绝超过 25 MiB 的新文件进入 Git 仓库；`assets/echo_model/echo.onnx` 是唯一的存量豁免，不要继续增加。需要分发新的大文件（例如模型权重）时，放入 GitHub Release 资产或更新仓库，由程序在首次使用时下载并校验。
+本仓库不使用 Git LFS：LFS 免费带宽配额按所有人的克隆下载计费，对社区分发的仓库是长期负担。CI 会运行 `python scripts/check_large_files.py`，拒绝超过 25 MiB 的新文件进入 Git 仓库；`assets/echo_model/echo.onnx` 是唯一的存量豁免，不要继续增加。需要分发新的大文件（例如模型权重）时，只能上传到 GitHub Release 资产，由程序在首次使用时下载并校验；不要提交到主仓库或更新仓库。
 
 ## 发布验收
 
