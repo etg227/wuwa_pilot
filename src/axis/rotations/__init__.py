@@ -24,6 +24,9 @@ class BuiltinAxis:
     chart: AxisChart
     mappings: dict[str, OutputBinding]
     loop_start: int | None
+    # 角色逻辑版：opener/loop 回调（RotationHost -> None）；None 表示只有宏播放。
+    logic_opener: object | None = None
+    logic_loop: object | None = None
 
 
 def _step_meta(key: str, hold_ms: int) -> tuple[str, str, OutputBinding]:

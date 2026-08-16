@@ -146,6 +146,8 @@ LOOP = (
     ("r", 50, 2800),
 )
 
+from src.axis.rotations.AiDaQianLogic import loop_cycle, opener
+
 _chart, _mappings, _loop_start = build_macro_chart("aidaqian", "爱达千轴", OPENER, LOOP)
 AXIS = BuiltinAxis(
     key="aidaqian",
@@ -154,4 +156,6 @@ AXIS = BuiltinAxis(
     chart=_chart,
     mappings=_mappings,
     loop_start=_loop_start,
+    logic_opener=opener,
+    logic_loop=loop_cycle,
 )

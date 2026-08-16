@@ -140,7 +140,10 @@ class AxisControlTab(CustomTab):
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(
-            BodyLabel("程序内置的成熟阵容宏轴，载入后自动配置推进模式与循环，直接启动即可。")
+            BodyLabel(
+                "程序内置的成熟阵容轴，用角色逻辑执行：技能按到确认放出、"
+                "大招演出结束由画面判定，普攻与切人保留宏节奏。载入后直接启动即可。"
+            )
         )
         row = QHBoxLayout()
         self.builtin_combo = ComboBox(container)
@@ -161,6 +164,7 @@ class AxisControlTab(CustomTab):
             return
         axis = axes[index]
         self._builtin_mappings = dict(axis.mappings)
+        self._builtin_logic_axis = axis if axis.logic_opener is not None else None
         self._load_chart(axis.chart, f"内置轴：{axis.name}")
         self.sequence_mode_check.setChecked(True)
         if axis.loop_start is not None:
@@ -211,6 +215,7 @@ class AxisControlTab(CustomTab):
             return
         self.settings["Text Axis"] = text
         self._builtin_mappings = None
+        self._builtin_logic_axis = None
         self._load_chart(chart, "文字轴")
         self.sequence_mode_check.setChecked(True)
         if loop_start is not None:
@@ -400,6 +405,7 @@ class AxisControlTab(CustomTab):
             self._show_error(str(error))
             return
         self._builtin_mappings = None
+        self._builtin_logic_axis = None
         self._load_chart(chart, path)
 
     def _import_community(self) -> None:
@@ -423,6 +429,7 @@ class AxisControlTab(CustomTab):
     def _community_imported(self, chart: AxisChart, source: str) -> None:
         self.community_button.setEnabled(True)
         self._builtin_mappings = None
+        self._builtin_logic_axis = None
         self._load_chart(chart, source)
 
     def _community_failed(self, message: str) -> None:
@@ -527,6 +534,24 @@ class AxisControlTab(CustomTab):
             self._show_error("请先导入椰果启动器轴")
             return
         try:
+            if self._builtin_logic_axis is not None and self.chart is self._builtin_logic_axis.chart:
+                self._save_playback_options()
+                task.configure_builtin_logic(
+                    self._builtin_logic_axis,
+                    self.countdown_spin.value(),
+                    self.loop_check.isChecked(),
+                    self.target_pause_check.isChecked(),
+                    self.target_wait_spin.value(),
+                    self.target_timeout_stop_check.isChecked(),
+                    self.auto_combat_pause_check.isChecked(),
+                )
+                task.start()
+                self.progress.setValue(0)
+                self.timing_label.setText("时间偏差：等待")
+                self.play_button.setEnabled(False)
+                self.stop_button.setEnabled(True)
+                self.status_label.setText("已加入任务队列（角色逻辑）")
+                return
             mappings = self._collect_mappings()
             self._save_playback_options()
             task.configure_playback(
