@@ -246,7 +246,7 @@ jobs:
         if: env.BUILD_EXE == 'true' && env.USE_RELEASE == ''
 
       - name: Verify launcher output
-        if: env.BUILD_EXE == 'true'
+        if: env.BUILD_EXE == 'true' && env.USE_RELEASE == ''
         shell: pwsh
         run: |
           $launchers = @(Get-ChildItem -Path pyappify_dist -Filter '*-online-setup.exe' -File)

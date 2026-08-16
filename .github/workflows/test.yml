@@ -73,7 +73,7 @@ jobs:
           }
 
           coverage run --source=src run_tests.py
-          coverage report --show-missing
+          coverage report
           coverage xml
 
       - name: Upload coverage report
