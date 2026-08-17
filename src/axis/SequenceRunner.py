@@ -19,22 +19,6 @@ AFTER_MIN_MS = {
 DEFAULT_MIN_GAP_MS = 60
 # 切人后到下一动作的衔接间隔：必须足够短，连段才能接上。
 SWITCH_FOLLOW_MS = 50
-# 条件步：连按直到该状态出现（技能进 CD 即确认放出）。
-UNTIL_STATES = {
-    "macro_attack_until_e": "resonance_ready",
-    "macro_e_until_cd": "resonance_cd",
-    "macro_r_until_cd": "liberation_cd",
-    "macro_q_until_cd": "echo_cd",
-}
-# 确认式轻触：按一次后在宏的等待窗口内部复查一次，明确未放出才补按一次。
-# 确认不占用额外时间，检测失败（None）不补按；E 不在此列——
-# 多充能技能的“无 CD”无法与“没放出”区分，盲目补按会多放一段。
-CONFIRM_TAP_STATES = {
-    "macro_r": "liberation_cd",
-    "macro_q": "echo_cd",
-}
-# 补按复查点：等待开始后多久做检测（秒）。
-CONFIRM_RECHECK_S = 0.7
 
 
 @dataclass(frozen=True)
@@ -101,7 +85,6 @@ class SequenceRunner:
         max_loops: int = MAX_SEQUENCE_LOOPS,
         gate_callback: Callable[[SequenceStep], bool] | None = None,
         on_switch: Callable[[SequenceStep], None] | None = None,
-        check_state: Callable[[str], bool] | None = None,
         action_callback: Callable[[SequenceStep], None] | None = None,
         progress_callback: Callable[[float], None] | None = None,
         status_callback: Callable[[str], None] | None = None,
@@ -154,8 +137,7 @@ class SequenceRunner:
             if action_callback:
                 action_callback(step)
             if not self._execute_step(
-                step, output, stop_event, basic_interval_ms, repeat_interval_ms, speed,
-                on_switch, check_state,
+                step, output, stop_event, basic_interval_ms, repeat_interval_ms, speed, on_switch
             ):
                 cancelled = True
                 break
@@ -165,53 +147,13 @@ class SequenceRunner:
         return cancelled, loops_done
 
     def _execute_step(
-        self, step, output, stop_event, basic_interval_ms, repeat_interval_ms, speed,
-        on_switch, check_state=None,
+        self, step, output, stop_event, basic_interval_ms, repeat_interval_ms, speed, on_switch
     ) -> bool:
         time_scale = 1.0 / speed
         binding = step.binding
         if binding is None:
             # 空招式：只占位等待。
             return not stop_event.wait(max(step.duration_ms, 0.0) / 1000 * time_scale)
-
-        if step.move_id == "macro_f_break":
-            # 条件步：处决提示出现才按，否则直接跳过。
-            if check_state is None or not check_state("f_break"):
-                return not stop_event.wait(DEFAULT_MIN_GAP_MS / 1000 * time_scale)
-            output.tap(binding)
-            return not stop_event.wait(self._after_wait_s(step, basic_interval_ms) * time_scale)
-
-        if step.move_id in UNTIL_STATES:
-            # 条件步：连按直到目标状态出现（技能进 CD 即确认放出）；
-            # 超时按预算继续推进（fail-open）。确认后只等动画时间，
-            # 不把整个预算计入等待。
-            state_name = UNTIL_STATES[step.move_id]
-            deadline = self.clock() + max(step.duration_ms, 1000) / 1000 * time_scale
-            while True:
-                output.tap(binding)
-                if check_state is not None and check_state(state_name) is True:
-                    break
-                remaining = deadline - self.clock()
-                if remaining <= 0:
-                    break
-                if stop_event.wait(min(basic_interval_ms / 1000 * time_scale, remaining)):
-                    return False
-            rest_ms = max(step.gap_ms - step.duration_ms, DEFAULT_MIN_GAP_MS)
-            return not stop_event.wait(rest_ms / 1000 * time_scale)
-
-        if step.move_id in CONFIRM_TAP_STATES and check_state is not None:
-            # 确认式轻触：总时长严格等于宏时间；确认只发生在等待窗口内部。
-            output.tap(binding)
-            deadline = self.clock() + self._after_wait_s(step, basic_interval_ms) * time_scale
-            first_wait = min(CONFIRM_RECHECK_S * time_scale, max(deadline - self.clock(), 0.0))
-            if first_wait > 0 and stop_event.wait(first_wait):
-                return False
-            if self.clock() < deadline:
-                # 只有明确“未放出”（False）才补按；检测失败（None）不动。
-                if check_state(CONFIRM_TAP_STATES[step.move_id]) is False:
-                    output.tap(binding)
-            remaining = max(deadline - self.clock(), 0.0)
-            return not (remaining > 0 and stop_event.wait(remaining))
 
         if binding.mode == "hold":
             output.press(binding)

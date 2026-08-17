@@ -18,20 +18,7 @@ class Aemeath(BaseChar):
     def lib2_available(self):
         return bool(self.task.find_one('aemeath_lib2', threshold=0.7))
 
-    def in_aidaqian_team(self):
-        """爱达千队（爱弥斯/达妮娅/千咲）检测；所有队伍分支必须以此守卫。"""
-        from src.char.Chisa import Chisa
-        from src.char.Denia import Denia
-
-        task = self.task
-        if task is None or not hasattr(task, "has_char"):
-            return False
-        return bool(task.has_char(Denia) and task.has_char(Chisa))
-
     def do_perform(self):
-        if self.in_aidaqian_team() and self.is_first_engage():
-            # 爱达千开轴：首发立刻让位，先由达妮娅、千咲完成开场爆发。
-            return self.switch_next_char()
         self.enhance_e_cast_this_turn = False
         self.lib2_cast_this_turn = False
         self.must_cast_lib2_this_turn = self.has_all_buff() and self.has_intro

@@ -5,14 +5,9 @@ from PySide6.QtCore import QObject, Signal
 from src.axis.AxisChart import AxisChart, OutputBinding
 from src.axis.AxisRunner import AxisEvent, AxisOutput, AxisRunner, build_axis_events
 from src.axis.CombatMonitor import CombatMonitor
-from src.axis.SequenceRunner import (
-    CONFIRM_TAP_STATES,
-    UNTIL_STATES,
-    SequenceRunner,
-    build_sequence_steps,
-)
+from src.axis.SequenceRunner import SequenceRunner, build_sequence_steps
 from src.axis.VisualSync import verify_switch_async, wait_for_switch_sync
-from src.task.BaseCombatTask import BaseCombatTask
+from src.combat.CombatCheck import CombatCheck
 
 
 class AxisPlaybackSignals(QObject):
@@ -48,7 +43,7 @@ class InteractionAxisOutput(AxisOutput):
             self.interaction.send_key_up(binding.code)
 
 
-class AxisPlaybackTask(BaseCombatTask):
+class AxisPlaybackTask(CombatCheck):
     """由“椰果启动器”页面配置并加入统一任务队列的隐藏任务。"""
 
     def __init__(self, *args, **kwargs):
@@ -71,7 +66,6 @@ class AxisPlaybackTask(BaseCombatTask):
         self._repeat_interval_ms = 110
         self._loop_playback = False
         self._loop_start_step = 1
-        self._logic_axis = None
         self._last_timing = None
 
     def configure_playback(
@@ -113,35 +107,6 @@ class AxisPlaybackTask(BaseCombatTask):
             self._loop_start_step = max(1, int(loop_start_step))
             self._visual_sync = bool(visual_sync)
             self._sync_timeout = max(0.2, float(sync_timeout))
-            self._pause_on_target_loss = bool(pause_on_target_loss)
-            self._target_loss_max_wait = max(5.0, float(target_loss_max_wait))
-            self._target_loss_timeout_stop = bool(target_loss_timeout_stop)
-            self._pause_auto_combat_after = bool(pause_auto_combat_after)
-            self._logic_axis = None
-        self._stop_event.clear()
-        self._last_timing = None
-
-    def configure_builtin_logic(
-        self,
-        axis,
-        countdown: int,
-        loop_playback: bool = True,
-        pause_on_target_loss: bool = True,
-        target_loss_max_wait: float = 30.0,
-        target_loss_timeout_stop: bool = False,
-        pause_auto_combat_after: bool = False,
-    ) -> None:
-        """配置角色逻辑版内置轴：技能状态驱动，宏时间只用于普攻与切人节奏。"""
-        if self.running or self.enabled:
-            raise RuntimeError("已有椰果启动器任务正在执行或等待执行")
-        if axis.logic_opener is None:
-            raise ValueError("这条内置轴没有角色逻辑版本")
-        if loop_playback and not pause_on_target_loss:
-            raise ValueError("循环播放必须开启目标丢失暂停，用于判断战斗结束")
-        with self._settings_lock:
-            self._logic_axis = axis
-            self._playback_settings = (axis.chart, (), (), 1.0, int(countdown))
-            self._loop_playback = bool(loop_playback)
             self._pause_on_target_loss = bool(pause_on_target_loss)
             self._target_loss_max_wait = max(5.0, float(target_loss_max_wait))
             self._target_loss_timeout_stop = bool(target_loss_timeout_stop)
@@ -188,28 +153,12 @@ class AxisPlaybackTask(BaseCombatTask):
                     status_callback=self.signals.status_changed.emit,
                 )
                 monitor.start()
-            if self._sequence_mode and any(
-                step.move_id in UNTIL_STATES or step.move_id in CONFIRM_TAP_STATES
-                for step in sequence_steps
-            ):
-                # E 高亮检测需要角色对象；识别失败则条件步按超时推进，不阻塞播放。
-                try:
-                    self.load_chars()
-                except Exception:
-                    self.signals.status_changed.emit("角色识别失败，E 高亮检测将按超时推进")
-            if self._logic_axis is not None:
-                mode_text = "角色逻辑"
-            elif self._sequence_mode:
-                mode_text = "推进模式"
-            else:
-                mode_text = "时间轴模式"
+            mode_text = "推进模式" if self._sequence_mode else "时间轴模式"
             title_suffix = "｜自动战斗已让位" if auto_combat_active else ""
             self.signals.status_changed.emit(f"正在执行：{chart.title}｜{mode_text}{title_suffix}")
             loops_done = 0
             try:
-                if self._logic_axis is not None:
-                    cancelled, loops_done = self._run_logic_axis(self._logic_axis, monitor)
-                elif self._sequence_mode:
+                if self._sequence_mode:
                     cancelled, loops_done = SequenceRunner().run(
                         sequence_steps,
                         InteractionAxisOutput(interaction),
@@ -222,7 +171,6 @@ class AxisPlaybackTask(BaseCombatTask):
                         should_continue_loop=(lambda: not monitor.gave_up) if monitor else None,
                         gate_callback=monitor.allow if monitor else None,
                         on_switch=self._on_sequence_switch if self._visual_sync else None,
-                        check_state=self._check_axis_state,
                         action_callback=self._on_action,
                         progress_callback=lambda value: self.signals.progress_changed.emit(round(value)),
                         status_callback=self.signals.status_changed.emit,
@@ -278,56 +226,6 @@ class AxisPlaybackTask(BaseCombatTask):
         self._last_timing = (current_ms, average_ms, max_ms)
         self.signals.timing_changed.emit(current_ms, average_ms, max_ms)
 
-    def _run_logic_axis(self, axis, monitor) -> tuple[bool, int]:
-        """角色逻辑执行：opener 一遍，loop 循环到战斗结束。"""
-        from src.axis.rotations.logic import RotationHost, StopPlayback
-
-        try:
-            self.load_chars()
-        except Exception:
-            self.signals.status_changed.emit("角色识别失败，技能确认将退化为宏式按法")
-        host = RotationHost(self, self._stop_event, self.signals.status_changed.emit)
-        loops_done = 0
-        try:
-            axis.logic_opener(host)
-            if axis.logic_loop is not None:
-                while not self._stop_event.is_set():
-                    if monitor is not None and monitor.gave_up:
-                        self.signals.status_changed.emit(f"战斗结束，共执行 {loops_done} 轮")
-                        break
-                    self.signals.status_changed.emit(f"进入第 {loops_done + 1} 轮循环")
-                    axis.logic_loop(host)
-                    loops_done += 1
-                    if not self._loop_playback or loops_done >= 100:
-                        break
-        except StopPlayback:
-            return True, loops_done
-        return self._stop_event.is_set(), loops_done
-
-    def _check_axis_state(self, name: str):
-        """条件步的视觉检测，三态：True/False 为可信结论，None 为检测失败。
-
-        补按只在明确 False 时发生，None 保持宏时序不动作。
-        """
-        try:
-            self.next_frame()
-            if name == "f_break":
-                return bool(self.check_f_break())
-            char = self.get_current_char(raise_exception=False)
-            if char is None:
-                return None
-            if name == "resonance_ready":
-                return bool(char.resonance_available())
-            if name == "resonance_cd":
-                return bool(char.has_cd("resonance"))
-            if name == "liberation_cd":
-                return bool(char.has_cd("liberation"))
-            if name == "echo_cd":
-                return bool(char.has_cd("echo"))
-        except Exception:
-            return None
-        return None
-
     def _on_sequence_switch(self, step) -> None:
         """切人后不阻塞衔接：后台校验槽位，确认失败补按一次。"""
         expected_slot = int(step.move_id[-1]) - 1
@@ -337,16 +235,7 @@ class AxisPlaybackTask(BaseCombatTask):
             interaction = self.executor.interaction
             if interaction is None or self._stop_event.is_set():
                 return
-            # 只有明确看到停在其它槽位才补按；识别不可靠时保持宏时序不干预，
-            # 避免盲目多按一次切人键把整条轴切乱。
-            try:
-                self.next_frame()
-                is_in_team, current_slot, _ = self.in_team()
-            except Exception:
-                return
-            if not is_in_team or current_slot is None or current_slot == expected_slot:
-                return
-            self.signals.status_changed.emit(f"切人 {expected_slot + 1} 未成功，已补按")
+            self.signals.status_changed.emit(f"切人 {expected_slot + 1} 未确认，已补按")
             if binding.kind == "mouse":
                 interaction.click(-1, -1, move=False, down_time=0.015, key=binding.code)
             else:

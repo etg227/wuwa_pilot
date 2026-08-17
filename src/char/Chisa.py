@@ -1,6 +1,6 @@
 import time
 
-from src.char.BaseChar import BaseChar, CharType, SwitchPriority, get_default_buff_time
+from src.char.BaseChar import BaseChar, CharType, get_default_buff_time
 
 
 class Chisa(BaseChar):
@@ -20,27 +20,6 @@ class Chisa(BaseChar):
         if self.is_dps_config():
             return get_default_buff_time(CharType.MAIN_DPS)
         return super().get_buff_time()
-
-    def in_aidaqian_team(self):
-        """爱达千队（爱弥斯/达妮娅/千咲）检测；所有队伍分支必须以此守卫。"""
-        from src.char.Aemeath import Aemeath
-        from src.char.Denia import Denia
-
-        task = self.task
-        if task is None or not hasattr(task, "has_char"):
-            return False
-        return bool(task.has_char(Aemeath) and task.has_char(Denia))
-
-    def get_switch_priority(self, current_char=None, has_intro=False, target_low_con=False):
-        if (self.in_aidaqian_team()
-                and time.time() - (getattr(self.task, "combat_start", 0) or 0) < 12):
-            from src.char.Denia import Denia
-
-            denia = self.task.has_char(Denia)
-            if denia is not None and denia.lib_1_casted:
-                # 爱达千开轴：达妮娅一段大之后轮到千咲打出 E 与大招。
-                return SwitchPriority.HIGH
-        return super().get_switch_priority(current_char, has_intro, target_low_con)
 
     def do_perform(self):
         if self.is_dps_config():
