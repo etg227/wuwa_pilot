@@ -8,6 +8,9 @@
   [![许可证](https://img.shields.io/badge/license-AGPL--3.0-green)](LICENSE.txt)
 </div>
 
+> [!IMPORTANT]
+> **本项目已停更。** 后续开发转移至打轴精简版 [椰果启动器（wuwa-yg-launcher）](https://github.com/etg227/wuwa-yg-launcher)，现有版本可继续使用，但不再更新与维护。
+
 > [!WARNING]
 > Wuwa Pilot 会模拟键盘和鼠标操作，属于第三方自动化工具，可能违反游戏规则并导致账号处罚。请在使用前了解相关规则，并自行承担账号、数据与设备风险。
 
